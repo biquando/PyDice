@@ -1,5 +1,6 @@
 import lark
 import node
+from inference import Inferencer
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
 grammar = '''
@@ -62,6 +63,20 @@ def main():
 
     print('INPUT:', INPUT)
     print(new_tree)
+
+    # Tree Inferencer Test
+    inferencer = Inferencer( new_tree, {"xyz":True} )
+    print( "Result after 1000 iterations:", inferencer.infer() )
+
+    # Another example
+    example1 = 'flip(0.33) | flip(0.25)'
+    print( "Example:", example1 )
+    tree2 = l.parse( example1 )
+    new_tree2 = TreeTransformer().transform(tree2)
+    inferencer2 = Inferencer( new_tree2, num_iterations = 10000 )
+    print( "Result after 10000 iterations (Should be around 0.5):", inferencer2.infer() )
+
+    #print( new_tree.op()(1,1) )
 
 
 if __name__ == '__main__':

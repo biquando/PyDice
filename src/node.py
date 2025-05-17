@@ -1,4 +1,5 @@
 import log
+import operator
 
 class Node:
     ...
@@ -20,7 +21,7 @@ class FlipNode(ExprNode):
 
 ### Unary operations ###########################################################
 
-class _UnaryNode(ExprNode):
+class UnaryNode(ExprNode):
     def __init__(self, operand: ExprNode):
         self.operand = operand
     def __repr__(self):
@@ -28,15 +29,16 @@ class _UnaryNode(ExprNode):
                log.indent(self.operand) + '\n' + \
                ')'
 
-class NotNode(_UnaryNode):
+class NotNode(UnaryNode):
     def __init__(self, operand: ExprNode):
         super().__init__(operand)
+        self.op = operator.not_
     def __repr__(self):
         return 'NotNode' + super().__repr__()
 
 ### Binary operations ##########################################################
 
-class _BinaryNode(ExprNode):
+class BinaryNode(ExprNode):
     def __init__(self, left: ExprNode, right: ExprNode):
         self.left = left
         self.right = right
@@ -46,14 +48,16 @@ class _BinaryNode(ExprNode):
                log.indent(self.right) + '\n' + \
                ')'
 
-class AndNode(_BinaryNode):
+class AndNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
         super().__init__(left, right)
+        self.op = operator.and_
     def __repr__(self):
         return 'AndNode' + super().__repr__()
 
-class OrNode(_BinaryNode):
+class OrNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
         super().__init__(left, right)
+        self.op = operator.or_
     def __repr__(self):
         return 'OrNode' + super().__repr__()
