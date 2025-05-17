@@ -9,5 +9,5 @@ python3 -m venv venv
 pip install -r requirements.txt
 
 # Run
-python main.py
+python src/main.py
 ```
