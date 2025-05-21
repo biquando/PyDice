@@ -24,6 +24,9 @@ class TreeInferencer:
             return treeNode.op( self.recurseTree( treeNode.operand ) )
         elif( isinstance( treeNode, BinaryNode ) ):
             return treeNode.op( self.recurseTree( treeNode.left ), self.recurseTree( treeNode.right ) )
+        elif( isinstance( treeNode, AssignNode ) ):
+            self.variables[treeNode.ident] = self.recurseTree(treeNode.val)
+            return self.recurseTree(treeNode.rest)
         else:
             raise Exception( "Tree Node Unknown:", treeNode )
 

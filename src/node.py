@@ -19,6 +19,17 @@ class FlipNode(ExprNode):
     def __repr__(self):
         return f'FlipNode({self.prob})'
 
+class AssignNode(ExprNode):
+    def __init__(self, ident: str, val: ExprNode, rest: ExprNode):
+        self.ident = ident
+        self.val = val
+        self.rest = rest
+    def __repr__(self):
+        return 'AssignNode(\n' + \
+               log.indent(f'{self.ident} = {self.val};\n') + \
+               log.indent(self.rest) + '\n' + \
+               ')'
+
 ### Unary operations ###########################################################
 
 class UnaryNode(ExprNode):

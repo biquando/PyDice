@@ -14,6 +14,7 @@ expr  :  "(" expr ")"                   -> paren
       |  IDENT                          -> ident    //  precedence than & or |
       |  expr AND expr                  -> and_
       |  expr OR expr                   -> or_
+      |  IDENT "=" expr ";" expr        -> assign
 
 
 // Terminals
@@ -49,6 +50,8 @@ class TreeTransformer(lark.Transformer):
         return node.AndNode(x[0], x[2])
     def or_(self, x):
         return node.OrNode(x[0], x[2])
+    def assign(self, x):
+        return node.AssignNode(x[0], x[1], x[2])
     def IDENT(self, token):
         return str(token)
     def NUMBER(self, token):
@@ -70,13 +73,20 @@ def main():
 
     # Another example
     example1 = 'flip(0.33) | flip(0.25)'
-    print( "Example:", example1 )
-    tree2 = l.parse( example1 )
+    print( "Example 1:", example1 )
+    tree1 = l.parse( example1 )
+    new_tree1 = TreeTransformer().transform(tree1)
+    inferencer1 = Inferencer( new_tree1, num_iterations = 10000 )
+    print( "Result after 10000 iterations (Should be around 0.5):", inferencer1.infer() )
+
+    # Example with assignment
+    example2 = 'x = flip(0.5); y = x & flip(0.5); x & y'
+    print( "Example 2:", example2 )
+    tree2 = l.parse( example2 )
     new_tree2 = TreeTransformer().transform(tree2)
     inferencer2 = Inferencer( new_tree2, num_iterations = 10000 )
-    print( "Result after 10000 iterations (Should be around 0.5):", inferencer2.infer() )
+    print( "Result after 10000 iterations (Should be around 0.25):", inferencer2.infer() )
 
-    #print( new_tree.op()(1,1) )
 
 
 if __name__ == '__main__':
