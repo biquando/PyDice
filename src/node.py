@@ -46,6 +46,7 @@ class AssignNode(ExprNode):
 class UnaryNode(ExprNode):
     def __init__(self, operand: ExprNode):
         self.operand = operand
+        self.op = lambda _: None
 
     def __repr__(self):
         return "(\n" + log.indent(self.operand) + "\n" + ")"
@@ -67,6 +68,7 @@ class BinaryNode(ExprNode):
     def __init__(self, left: ExprNode, right: ExprNode):
         self.left = left
         self.right = right
+        self.op = lambda _, __: None
 
     def __repr__(self):
         return (
