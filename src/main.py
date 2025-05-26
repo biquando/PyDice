@@ -11,10 +11,11 @@ expr  :  "(" expr ")"                   -> paren
       |  "false"                        -> false
       |  "flip" "(" NUMBER ")"          -> flip
       |  "!" expr                       -> not_     // FIXME: give ! higher
-      |  "let" IDENT "=" expr "in" expr -> assign
-      |  IDENT                          -> ident    //  precedence than & or |
+      |  "let" IDENT "=" expr "in" expr -> assign   //  precedence than & or |
+      |  IDENT                          -> ident
       |  expr AND expr                  -> and_
       |  expr OR expr                   -> or_
+      |  "if" expr "then" expr "else" expr  -> if_
 
 
 // Terminals
@@ -62,6 +63,9 @@ class TreeTransformer(lark.Transformer):
 
     def assign(self, x):
         return node.AssignNode(x[0], x[1], x[2])
+
+    def if_(self, x):
+        return node.IfNode(x[0], x[1], x[2])
 
     def IDENT(self, token):
         return str(token)

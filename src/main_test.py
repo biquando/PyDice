@@ -18,27 +18,28 @@ def test_always_negative(test_parser: lark.Lark) -> None:
     assert inferencer.infer() == 0.0
 
 
-@pytest.mark.parametrize(
-    "text,expected",
-    [
-        ("flip(0.33) | flip(0.25)", 0.5),
-        (
-            """
-let a = flip(0.3) in
-a
-    """,
-            0.3,
-        ),
-        (
-            """
-let x = flip(0.5) in
-let y = x & flip(0.5) in
-x & y
-""",
-            0.25,
-        ),
-    ],
-    ids=["test_basic_or", "test_basic_assign", "test_basic_and"],
-)
-def test_execution(test_parser: lark.Lark, text: str, expected: float) -> None:
-    assert parse_string(text, test_parser) == pytest.approx(expected, rel=0.02)
+def test_basic_assign(test_parser: lark.Lark) -> None:
+    text = """
+        let a = flip(0.3) in
+        a
+    """
+    assert parse_string(text, test_parser) == pytest.approx(0.3, rel=0.02)
+
+
+def test_basic_or(test_parser: lark.Lark) -> None:
+    text = "flip(0.33) | flip(0.25)"
+    assert parse_string(text, test_parser) == pytest.approx(0.5, rel=0.02)
+
+
+def test_basic_and(test_parser: lark.Lark) -> None:
+    text = """
+        let x = flip(0.5) in
+        let y = x & flip(0.5) in
+        x & y
+    """
+    assert parse_string(text, test_parser) == pytest.approx(0.25, rel=0.02)
+
+
+def test_basic_if(test_parser: lark.Lark) -> None:
+    text = "x = if flip(0.5) then flip(0.25) else true; x"
+    assert parse_string(text, test_parser) == pytest.approx(0.625, rel=0.02)
