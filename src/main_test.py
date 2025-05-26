@@ -41,5 +41,5 @@ def test_basic_and(test_parser: lark.Lark) -> None:
 
 
 def test_basic_if(test_parser: lark.Lark) -> None:
-    text = "x = if flip(0.5) then flip(0.25) else true; x"
+    text = "let x = if flip(0.5) then flip(0.25) else true in x"
     assert parse_string(text, test_parser) == pytest.approx(0.625, rel=0.02)
