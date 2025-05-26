@@ -18,6 +18,8 @@ class IdentNode(ExprNode):
 
 class FlipNode(ExprNode):
     def __init__(self, prob: float):
+        if prob < 0 or prob > 1:
+            raise ValueError(f"Invalid flip probability ({prob})")
         self.prob = prob
 
     def __repr__(self):
@@ -63,13 +65,17 @@ class UnaryNode(ExprNode):
         self.op = lambda _: None
 
     def __repr__(self):
-        return "(\n" + log.indent(self.operand) + "\n" + ")"
+        return (
+            "(\n"
+            + log.indent(self.operand)
+            + "\n)"
+        )
 
 
 class NotNode(UnaryNode):
     def __init__(self, operand: ExprNode):
         super().__init__(operand)
-        self.op = operator.not_
+        self.op = lambda x: x.__not__() # can't override not operator for object
 
     def __repr__(self):
         return "NotNode" + super().__repr__()
@@ -86,7 +92,11 @@ class BinaryNode(ExprNode):
 
     def __repr__(self):
         return (
-            "(\n" + log.indent(self.left) + ",\n" + log.indent(self.right) + "\n" + ")"
+            "(\n"
+            + log.indent(self.left)
+            + ",\n"
+            + log.indent(self.right)
+            + "\n)"
         )
 
 
@@ -106,3 +116,35 @@ class OrNode(BinaryNode):
 
     def __repr__(self):
         return "OrNode" + super().__repr__()
+
+class AddNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = operator.add
+
+    def __repr__(self):
+        return "AddNode" + super().__repr__()
+
+class SubNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = operator.sub
+
+    def __repr__(self):
+        return "SubNode" + super().__repr__()
+
+class MulNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = operator.mul
+
+    def __repr__(self):
+        return "MulNode" + super().__repr__()
+
+class DivNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = operator.floordiv
+
+    def __repr__(self):
+        return "DivNode" + super().__repr__()
