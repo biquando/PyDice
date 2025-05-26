@@ -6,9 +6,11 @@ import random
 
 # Only does MC for the particular tree
 class TreeInferencer:
-    def __init__(self, tree, variables):
+    def __init__(self, tree, variables, seed=0):
         self.tree = tree
         self.variables = variables
+        self.rng = random.Random()
+        self.rng.seed(seed)
 
     def infer(self) -> DiceType:
         res = self.recurseTree(self.tree)
@@ -23,7 +25,7 @@ class TreeInferencer:
             return treeNode
 
         elif type(treeNode) is node.FlipNode:
-            return BoolType(random.random() < treeNode.prob)
+            return BoolType(self.rng.random() < treeNode.prob)
 
         elif type(treeNode) is node.IdentNode:
             if treeNode.ident not in self.variables:
@@ -58,10 +60,10 @@ class TreeInferencer:
 # Should do numerous runs of inference + handle functions
 class Inferencer:
     # TODO - Add function support once it's implemented
-    def __init__(self, tree, variables=None, num_iterations=1000):
+    def __init__(self, tree, variables=None, num_iterations=1000, seed=0):
         self.tree = tree
         self.variables = variables if variables is not None else {}
-        self.treeInferencer = TreeInferencer(tree, self.variables)
+        self.treeInferencer = TreeInferencer(tree, self.variables, seed)
         self.num_its = num_iterations
 
     def infer(self) -> dict[DiceType, float]:
