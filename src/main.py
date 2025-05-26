@@ -11,10 +11,10 @@ expr  :  "(" expr ")"                   -> paren
       |  "false"                        -> false
       |  "flip" "(" NUMBER ")"          -> flip
       |  "!" expr                       -> not_     // FIXME: give ! higher
+      |  "let" IDENT "=" expr "in" expr -> assign
       |  IDENT                          -> ident    //  precedence than & or |
       |  expr AND expr                  -> and_
       |  expr OR expr                   -> or_
-      |  IDENT "=" expr ";" expr        -> assign
 
 
 // Terminals
