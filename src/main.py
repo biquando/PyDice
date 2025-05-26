@@ -15,6 +15,7 @@ expr  :  "(" expr ")"                   -> paren
       |  expr AND expr                  -> and_
       |  expr OR expr                   -> or_
       |  IDENT "=" expr ";" expr        -> assign
+      |  "if" expr "then" expr "else" expr -> if_
 
 
 // Terminals
@@ -62,6 +63,9 @@ class TreeTransformer(lark.Transformer):
 
     def assign(self, x):
         return node.AssignNode(x[0], x[1], x[2])
+
+    def if_(self, x):
+        return node.IfNode(x[0], x[1], x[2])
 
     def IDENT(self, token):
         return str(token)

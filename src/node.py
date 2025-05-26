@@ -39,6 +39,20 @@ class AssignNode(ExprNode):
             + ")"
         )
 
+class IfNode(ExprNode):
+    def __init__(self, cond: ExprNode, true_expr: ExprNode, false_expr: ExprNode):
+        self.cond = cond
+        self.true_expr = true_expr
+        self.false_expr = false_expr
+
+    def __repr__(self):
+        return (
+            "AssignNode(\n"
+            + log.indent(self.cond)+"\n"
+            + log.indent(self.true_expr)+"\n"
+            + log.indent(self.false_expr)+"\n"
+            + ")"
+        )
 
 ### Unary operations ###########################################################
 
