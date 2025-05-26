@@ -42,6 +42,15 @@ class TreeInferencer:
             self.variables[treeNode.ident] = self.recurseTree(treeNode.val)
             return self.recurseTree(treeNode.rest)
 
+        elif isinstance(treeNode, node.IfNode):
+            cond = self.recurseTree(treeNode.cond)
+            if type(cond) is not BoolType:
+                raise TypeError("Condition must be BoolType")
+            if cond.val:
+                return self.recurseTree(treeNode.true_expr)
+            else:
+                return self.recurseTree(treeNode.false_expr)
+
         else:
             raise Exception("Tree Node Unknown:", treeNode)
 

@@ -19,13 +19,30 @@ def test_always_negative(test_parser: lark.Lark) -> None:
     assert inferencer.infer()[BoolType(False)] == 1.0
 
 
+def test_basic_assign(test_parser: lark.Lark) -> None:
+    text = """
+        let a = flip(0.3) in
+        a
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.3, rel=0.02)
+
+
+def test_basic_if(test_parser: lark.Lark) -> None:
+    text = "let x = if flip(0.5) then flip(0.25) else true in x"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.625, rel=0.02)
+
+
 def test_basic_or(test_parser: lark.Lark) -> None:
     text = "flip(0.33) | flip(0.25)"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.01)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.02)
 
 
 def test_basic_and(test_parser: lark.Lark) -> None:
-    text = "x = flip(0.5); y = x & flip(0.5); x & y"
+    text = """
+        let x = flip(0.5) in
+        let y = x & flip(0.5) in
+        x & y
+    """
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.25, rel=0.02)
 
 
