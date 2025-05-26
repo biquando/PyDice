@@ -1,6 +1,7 @@
 import lark
 import node
 from inference import Inferencer
+from dicetypes import BoolType, IntType
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
 grammar = """
@@ -10,18 +11,28 @@ expr  :  "(" expr ")"                   -> paren
       |  "true"                         -> true
       |  "false"                        -> false
       |  "flip" "(" NUMBER ")"          -> flip
+      |  "int" "(" INT "," INT ")"      -> int_
       |  "!" expr                       -> not_     // FIXME: give ! higher
       |  IDENT                          -> ident    //  precedence than & or |
       |  expr AND expr                  -> and_
       |  expr OR expr                   -> or_
+      |  expr ADD expr                  -> add
+      |  expr SUB expr                  -> sub
+      |  expr MUL expr                  -> mul
+      |  expr DIV expr                  -> div
       |  IDENT "=" expr ";" expr        -> assign
 
 
 // Terminals
 %import common.NUMBER
+%import common.INT
 IDENT :  /[a-zA-Z_][a-zA-Z0-9_]*/
-AND.2 :  "&"
-OR.1  :  "|"
+AND.4 :  "&"
+OR.3  :  "|"
+ADD.1 :  "+"
+SUB.1 :  "-"
+MUL.2 :  "*"
+DIV.2 :  "/"
 
 %import common.WS
 %ignore WS
@@ -34,22 +45,25 @@ OR.1  :  "|"
 # a `lark.Tree` node and replace it with the return value.
 class TreeTransformer(lark.Transformer):
     def expr(self, x):  # NOTE: x is a list of terminals & nonterminals in the
-        return x[0]  #       rule, not including tokens specified by double
-
-    def paren(self, x):  #       quotes in the grammar
+        return x[0]     #       rule, not including tokens specified by double
+                        #       quotes in the grammar
+    def paren(self, x):
         return x[0]
 
     def ident(self, x):
         return node.IdentNode(x[0])
 
     def true(self, _):
-        return True
+        return BoolType(True)
 
     def false(self, _):
-        return False
+        return BoolType(False)
 
     def flip(self, x):
         return node.FlipNode(x[0])
+
+    def int_(self, x):
+        return IntType(x[0], x[1])
 
     def not_(self, x):
         return node.NotNode(x[0])
@@ -60,6 +74,18 @@ class TreeTransformer(lark.Transformer):
     def or_(self, x):
         return node.OrNode(x[0], x[2])
 
+    def add(self, x):
+        return node.AddNode(x[0], x[2])
+
+    def sub(self, x):
+        return node.SubNode(x[0], x[2])
+
+    def mul(self, x):
+        return node.MulNode(x[0], x[2])
+
+    def div(self, x):
+        return node.DivNode(x[0], x[2])
+
     def assign(self, x):
         return node.AssignNode(x[0], x[1], x[2])
 
@@ -69,9 +95,11 @@ class TreeTransformer(lark.Transformer):
     def NUMBER(self, token):
         return float(token)
 
+    def INT(self, token):
+        return int(token)
 
-# Returning only a float should change once new types are added.
-def parse_string(text: str, parser: lark.Lark) -> float:
+
+def parse_string(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
     ir = TreeTransformer().transform(ast)
     inferencer = Inferencer(ir, num_iterations=100000)
