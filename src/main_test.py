@@ -81,3 +81,12 @@ def test_int_mul(test_parser: lark.Lark) -> None:
 def test_int_div(test_parser: lark.Lark) -> None:
     text = "int(3, 7) / int(3, 2)"
     assert parse_string(text, test_parser)[IntType(3, 3)] == 1.0
+
+
+def test_basic_discrete(test_parser: lark.Lark) -> None:
+    text = "discrete(0.1, 0.2, 0.3)"
+    res = parse_string(text, test_parser)
+    assert res[IntType(2, 0)] == pytest.approx(1/6, rel=0.2)
+    assert res[IntType(2, 1)] == pytest.approx(1/3, rel=0.2)
+    assert res[IntType(2, 2)] == pytest.approx(1/2, rel=0.2)
+    assert IntType(2, 3) not in res

@@ -1,4 +1,5 @@
 import log
+import math
 import operator
 
 
@@ -24,6 +25,28 @@ class FlipNode(ExprNode):
 
     def __repr__(self):
         return f"FlipNode({self.prob})"
+
+
+class DiscreteNode(ExprNode):
+    def __init__(self, probs: list[float]):
+        for prob in probs:
+            if prob < 0:
+                raise ValueError(f"Invalid discrete probability ({prob})")
+
+        # Extend length to power of two
+        bit_width = math.ceil(math.log2(len(probs)))
+        new_len = 2 ** bit_width
+        probs += [0.] * (new_len - len(probs))
+
+        # Normalize
+        total = sum(probs)
+        probs = [prob / total for prob in probs]
+
+        self.bit_width = bit_width
+        self.probs = probs
+
+    def __repr__(self):
+        return f"DiscreteNode({self.probs})"
 
 
 class AssignNode(ExprNode):
