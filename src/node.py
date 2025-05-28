@@ -39,6 +39,10 @@ class DiscreteNode(ExprNode):
         probs += [0.] * (new_len - len(probs))
 
         # Normalize
+        #  The original Dice does not allow for distributions that don't add
+        #  up to one. In PyDice, we normalize the input probabilities, allowing
+        #  the user to input any nonnegative weights, which then get normalized
+        #  to a valid probability distribution.
         total = sum(probs)
         probs = [prob / total for prob in probs]
 
