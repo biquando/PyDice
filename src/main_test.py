@@ -2,7 +2,7 @@ import pytest
 import lark
 from dicetypes import BoolType, IntType
 
-from main import grammar, TreeTransformer, parse_string
+from main import grammar, TreeTransformer, parse_string, parse_string_compile
 from inference import Inferencer
 
 
@@ -81,3 +81,19 @@ def test_int_mul(test_parser: lark.Lark) -> None:
 def test_int_div(test_parser: lark.Lark) -> None:
     text = "int(3, 7) / int(3, 2)"
     assert parse_string(text, test_parser)[IntType(3, 3)] == 1.0
+
+def test_flip_compiled(test_parser: lark.Lark) -> None:
+    text = "flip(0.33)"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.33, rel=0.02)
+
+def test_and_compiled(test_parser: lark.Lark) -> None:
+    text = "flip(0.33) & flip(0.67)"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2211, rel=0.02)
+
+def test_orcompiled(test_parser: lark.Lark) -> None:
+    text = "flip(0.33) | flip(0.67)"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.777, rel=0.02)
+
+def test_orcompiled(test_parser: lark.Lark) -> None:
+    text = "if flip(0.5) then flip(0.4) else flip(0.9)"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.65, rel=0.01)

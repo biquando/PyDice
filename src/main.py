@@ -1,6 +1,7 @@
 import lark
 import node
 from inference import Inferencer
+from compiler import TreeCompiler
 from dicetypes import BoolType, IntType
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
@@ -108,3 +109,9 @@ def parse_string(text: str, parser: lark.Lark) -> dict:
     ir = TreeTransformer().transform(ast)
     inferencer = Inferencer(ir, num_iterations=100000)
     return inferencer.infer()
+
+def parse_string_compile(text: str, parser: lark.Lark) -> dict:
+    ast = parser.parse(text)
+    ir = TreeTransformer().transform(ast)
+    compiled_tree = TreeCompiler(ir)
+    return compiled_tree.infer()
