@@ -1,4 +1,6 @@
+from pathlib import Path
 import lark
+
 import node
 from inference import Inferencer
 from dicetypes import BoolType, IntType
@@ -121,3 +123,12 @@ def parse_string(text: str, parser: lark.Lark) -> dict:
     ir = TreeTransformer().transform(ast)
     inferencer = Inferencer(ir, num_iterations=100000)
     return inferencer.infer()
+
+
+def execute_from_file(
+    p: Path, parser: lark.Lark = lark.Lark(grammar, parser="lalr")
+) -> dict:
+    with open(p, "r") as f:
+        s = f.read()
+
+    return parse_string(s, parser)
