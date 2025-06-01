@@ -10,7 +10,7 @@ start :  expr                           -> expr
 expr  :  "(" expr ")"                   -> paren
       |  "true"                         -> true
       |  "false"                        -> false
-      |  "flip" "(" NUMBER ")"          -> flip
+      |  "flip" NUMBER                  -> flip
       |  "discrete" "(" nums ")"        -> discrete
       |  "int" "(" INT "," INT ")"      -> int_
       |  "!" expr                       -> not_     // FIXME: give ! higher
@@ -31,8 +31,8 @@ nums  :  NUMBER                         -> nums_single
 %import common.NUMBER
 %import common.INT
 IDENT :  /[a-zA-Z_][a-zA-Z0-9_]*/
-AND.4 :  "&"
-OR.3  :  "|"
+AND.4 :  "&&"
+OR.3  :  "||"
 ADD.1 :  "+"
 SUB.1 :  "-"
 MUL.2 :  "*"
@@ -49,8 +49,9 @@ DIV.2 :  "/"
 # a `lark.Tree` node and replace it with the return value.
 class TreeTransformer(lark.Transformer):
     def expr(self, x):  # NOTE: x is a list of terminals & nonterminals in the
-        return x[0]     #       rule, not including tokens specified by double
-                        #       quotes in the grammar
+        return x[0]  #       rule, not including tokens specified by double
+        #       quotes in the grammar
+
     def paren(self, x):
         return x[0]
 
