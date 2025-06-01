@@ -1,3 +1,4 @@
+from _pytest._code.code import E
 import lark
 import node
 from inference import Inferencer
@@ -10,7 +11,7 @@ start :  expr                           -> expr
 expr  :  "(" expr ")"                   -> paren
       |  "true"                         -> true
       |  "false"                        -> false
-      |  "flip" "(" NUMBER ")"          -> flip
+      |  "flip" NUMBER                  -> flip
       |  "discrete" "(" nums ")"        -> discrete
       |  "int" "(" INT "," INT ")"      -> int_
       |  "!" expr                       -> not_     // FIXME: give ! higher
@@ -49,8 +50,9 @@ DIV.2 :  "/"
 # a `lark.Tree` node and replace it with the return value.
 class TreeTransformer(lark.Transformer):
     def expr(self, x):  # NOTE: x is a list of terminals & nonterminals in the
-        return x[0]     #       rule, not including tokens specified by double
-                        #       quotes in the grammar
+        return x[0]  #       rule, not including tokens specified by double
+        #       quotes in the grammar
+
     def paren(self, x):
         return x[0]
 
