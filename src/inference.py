@@ -1,12 +1,14 @@
 # Contains code to do MonteCarlo Inferencing on our parsed tree
+import random
+from collections import Counter
+
 import node
 from dicetypes import DiceType, BoolType, IntType
-import random
 
 
 # Only does MC for the particular tree
 class TreeInferencer:
-    def __init__(self, tree, variables, seed=0):
+    def __init__(self, tree, variables, seed=None):
         self.tree = tree
         self.variables = variables
         self.rng = random.Random()
@@ -69,21 +71,16 @@ class TreeInferencer:
 # Should do numerous runs of inference + handle functions
 class Inferencer:
     # TODO - Add function support once it's implemented
-    def __init__(self, tree, variables=None, num_iterations=1000, seed=0):
+    def __init__(self, tree, variables=None, num_iterations=1000, seed=None):
         self.tree = tree
         self.variables = variables if variables is not None else {}
         self.treeInferencer = TreeInferencer(tree, self.variables, seed)
         self.num_its = num_iterations
 
     def infer(self) -> dict[DiceType, float]:
-        results = {}
+        results = Counter()
         for _ in range(self.num_its):
             res = self.treeInferencer.infer()
-            if res not in results:
-                results[res] = 1
-            else:
-                results[res] += 1
+            results[res] += 1
 
-        for outcome in results:
-            results[outcome] /= self.num_its
-        return results
+        return {outcome: count / self.num_its for outcome, count in results.items()}
