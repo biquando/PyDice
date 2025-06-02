@@ -7,24 +7,37 @@ from dicetypes import BoolType, IntType
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
 grammar = """
-start :  expr                           -> expr
+?start: expr
 
-expr  :  "(" expr ")"                   -> paren
-      |  "true"                         -> true
-      |  "false"                        -> false
-      |  "flip" NUMBER                  -> flip
-      |  "discrete" "(" nums ")"        -> discrete
-      |  "int" "(" INT "," INT ")"      -> int_
-      |  "!" expr                       -> not_     // FIXME: give ! higher
-      |  "let" IDENT "=" expr "in" expr -> assign   //  precedence than & or |
-      |  IDENT                          -> ident
-      |  expr AND expr                  -> and_
-      |  expr OR expr                   -> or_
-      |  expr ADD expr                  -> add
-      |  expr SUB expr                  -> sub
-      |  expr MUL expr                  -> mul
-      |  expr DIV expr                  -> div
-      |  "if" expr "then" expr "else" expr  -> if_
+?expr: add_expr     // We add precedence to the expressions: NOT > AND > OR > MUL/DIV > ADD/SUB
+
+?add_expr: mul_expr
+         | add_expr ADD mul_expr   -> add
+         | add_expr SUB mul_expr   -> sub
+
+?mul_expr: or_expr
+         | mul_expr MUL or_expr     -> mul
+         | mul_expr DIV or_expr     -> div
+
+?or_expr: and_expr
+        | or_expr OR and_expr       -> or_
+
+?and_expr: unary_expr
+         | and_expr AND unary_expr  -> and_
+
+?unary_expr: NOT unary_expr         -> not_
+           // | SUB unary_expr         -> neg (Do we need to support negative sign?)
+           | atom
+
+?atom: "(" expr ")"
+     | "true"                               -> true
+     | "false"                              -> false
+     | "flip" NUMBER                        -> flip
+     | "discrete" "(" nums ")"              -> discrete
+     | "int" "(" INT "," INT ")"            -> int_
+     | "let" IDENT "=" expr "in" expr       -> assign
+     | "if" expr "then" expr "else" expr    -> if_
+     | IDENT                                -> ident
 
 nums  :  NUMBER                         -> nums_single
       |  NUMBER "," nums                -> nums_recurse
@@ -33,12 +46,13 @@ nums  :  NUMBER                         -> nums_single
 %import common.NUMBER
 %import common.INT
 IDENT :  /[a-zA-Z_][a-zA-Z0-9_]*/
-AND.4 :  "&&"
-OR.3  :  "||"
-ADD.1 :  "+"
-SUB.1 :  "-"
-MUL.2 :  "*"
-DIV.2 :  "/"
+NOT : "!"
+AND :  "&"
+OR  :  "|"
+ADD :  "+"
+SUB :  "-"
+MUL :  "*"
+DIV :  "/"
 
 %import common.WS
 %ignore WS
@@ -76,7 +90,7 @@ class TreeTransformer(lark.Transformer):
         return IntType(x[0], x[1])
 
     def not_(self, x):
-        return node.NotNode(x[0])
+        return node.NotNode(x[1])
 
     def and_(self, x):
         return node.AndNode(x[0], x[2])
@@ -121,6 +135,7 @@ class TreeTransformer(lark.Transformer):
 def parse_string(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
     ir = TreeTransformer().transform(ast)
+    print( ir )
     inferencer = Inferencer(ir, num_iterations=100000)
     return inferencer.infer()
 

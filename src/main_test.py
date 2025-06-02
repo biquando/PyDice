@@ -53,6 +53,9 @@ def test_basic_and(test_parser: lark.Lark) -> None:
         0.25, rel=0.02
     )
 
+def test_NOT_precedence(test_parser: lark.Lark) -> None:
+    text = "!flip(0.1) & flip(0.5) & !(flip(0.5) | flip( 0.5 ))"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.1125, rel=0.02)
 
 def test_type_check(test_parser: lark.Lark) -> None:
     with pytest.raises(Exception):
@@ -90,6 +93,16 @@ def test_int_div(test_parser: lark.Lark) -> None:
     text = "int(3, 7) / int(3, 2)"
     assert parse_string(text, test_parser)[IntType(3, 3)] == 1.0
 
+def test_int_precedence(test_parser: lark.Lark) -> None:
+    text = "int(10,4) * int(10,2) + int(10,10) / ( int(10,5) - int(10,3) )"
+    print( parse_string(text, test_parser) )
+    assert parse_string(text, test_parser)[IntType(10, 13)] == 1.0
+
+def test_int_bool(test_parser: lark.Lark) -> None:
+    text = "if flip(0.5) then int(3,1) else int(10,2)"
+    res = parse_string(text, test_parser)
+    assert res[IntType(3, 1)] == pytest.approx(0.5, rel=0.1)
+    assert res[IntType(10, 2)] == pytest.approx(0.5, rel=0.1)
 
 def test_basic_discrete(test_parser: lark.Lark) -> None:
     text = "discrete(0.1, 0.2, 0.3)"
