@@ -53,6 +53,10 @@ def test_basic_and(test_parser: lark.Lark) -> None:
         0.25, rel=0.02
     )
 
+def test_logic_precedence(test_parser: lark.Lark) -> None:
+    text = "flip(0.5) | flip(0.5) & flip(0.2)"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.55, rel=0.02)
+
 def test_NOT_precedence(test_parser: lark.Lark) -> None:
     text = "!flip(0.1) & flip(0.5) & !(flip(0.5) | flip( 0.5 ))"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.1125, rel=0.02)
