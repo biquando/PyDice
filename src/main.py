@@ -9,7 +9,14 @@ from dicetypes import BoolType, IntType
 grammar = """
 ?start: expr
 
-?expr: equality_expr     // We add precedence to the expressions: NOT > AND > OR > MUL/DIV > ADD/SUB
+// We add precedence to the expression groups: 
+//      Arithmetic Expressions: MUL/DIV > ADD/SUB > LT,LTE,GT,GTE 
+//      Logical Expressions: NOT > XOR > AND > OR > IMPLIES > IFF
+// Then the precendence in general is:
+//      ARITHMETIC > LOGICAL > EQUALS/NOT_EQUALS
+// Since arithmetic and logical operators don't mix, having them in the same precedence is fine
+
+?expr: equality_expr     
 
 ?equality_expr: iff_expr
          | equality_expr EQUALS iff_expr      -> eq
