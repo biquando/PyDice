@@ -144,6 +144,22 @@ class OrNode(BinaryNode):
     def __repr__(self):
         return "OrNode" + super().__repr__()
 
+class EqualNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = operator.eq
+
+    def __repr__(self):
+        return "EqualNode" + super().__repr__()
+
+class LessThanNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = operator.lt
+
+    def __repr__(self):
+        return "LessThanNode" + super().__repr__()
+
 class AddNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
         super().__init__(left, right)

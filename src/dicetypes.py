@@ -12,7 +12,7 @@ class DiceType:
         return hash(self.val)
 
     def __eq__(self, other):
-        return isinstance(other, DiceType) and self.val == other.val
+        return BoolType( isinstance(other, DiceType) and self.val == other.val )
 
 class BoolType(DiceType):
     def __init__(self, val: bool):
@@ -51,6 +51,10 @@ class IntType(DiceType):
             raise TypeError("Integer operation must act on two integers")
         if self.width != other.width:
             raise TypeError(f"Integer operands must be equal widths ({self.width} != {other.width})")
+
+    def __lt__(self, other: IntType) -> BoolType:
+        self._verify_types(other)
+        return BoolType(self.val < other.val)
 
     def __add__(self, other: IntType) -> IntType:
         self._verify_types(other)

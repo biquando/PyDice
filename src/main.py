@@ -13,8 +13,17 @@ expr  :  "(" expr ")"                   -> paren
       |  "flip" "(" NUMBER ")"          -> flip
       |  "discrete" "(" nums ")"        -> discrete
       |  "int" "(" INT "," INT ")"      -> int_
+      |  expr IFF expr                  -> iff
+      |  expr EQUALS expr               -> eq
+      |  expr NOT_EQUALS expr           -> neq
+      |  expr LESS_THAN expr            -> lt
+      |  expr LESS_THAN_OR_EQUALS expr  -> lte
+      |  expr GREATER_THAN expr         -> gt
+      |  expr GREATER_THAN_OR_EQUALS expr  -> gte
+      |  expr XOR expr                  -> xor
+      |  expr IMPLIES expr              -> implies
       |  "!" expr                       -> not_     // FIXME: give ! higher
-      |  "let" IDENT "=" expr "in" expr -> assign   //  precedence than & or |
+      |  "let" IDENT ASSIGN expr "in" expr -> assign   //  precedence than & or |
       |  IDENT                          -> ident
       |  expr AND expr                  -> and_
       |  expr OR expr                   -> or_
@@ -32,6 +41,16 @@ nums  :  NUMBER                         -> nums_single
 %import common.INT
 IDENT :  /[a-zA-Z_][a-zA-Z0-9_]*/
 AND.4 :  "&"
+IMPLIES.2 : "->"
+IFF: "<->"
+EQUALS: "=="
+ASSIGN: "="
+NOT_EQUALS: "!="
+LESS_THAN: "<"
+LESS_THAN_OR_EQUALS: "<="
+GREATER_THAN: ">"
+GREATER_THAN_OR_EQUALS: ">="
+XOR: "^"
 OR.3  :  "|"
 ADD.1 :  "+"
 SUB.1 :  "-"
@@ -93,8 +112,35 @@ class TreeTransformer(lark.Transformer):
     def div(self, x):
         return node.DivNode(x[0], x[2])
 
+    def implies(self, x):
+        return node.OrNode(node.NotNode(x[0]), x[2])
+
+    def iff(self, x):
+        return node.AndNode( self.implies( x ), self.implies( x[::-1] ) )
+    
+    def eq(self, x):
+        return node.EqualNode( x[0], x[2] )
+
+    def neq(self,x):
+        return node.NotNode( self.eq( x ) )
+    
+    def lt(self,x):
+        return node.LessThanNode( x[0], x[2] )
+    
+    def lte(self,x):
+        return node.OrNode( self.lt(x), self.eq(x) )
+    
+    def gt(self,x):
+        return node.NotNode( self.lte(x) )
+
+    def gte(self,x):
+        return node.NotNode( self.lt(x) )
+
+    def xor(self,x):
+        return node.AndNode( self.or_(x), node.NotNode( self.and_(x) ) )
+
     def assign(self, x):
-        return node.AssignNode(x[0], x[1], x[2])
+        return node.AssignNode(x[0], x[2], x[3])
 
     def if_(self, x):
         return node.IfNode(x[0], x[1], x[2])
