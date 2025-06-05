@@ -9,25 +9,43 @@ from dicetypes import BoolType, IntType
 grammar = """
 ?start: expr
 
-?expr: add_expr     // We add precedence to the expressions: NOT > AND > OR > MUL/DIV > ADD/SUB
+?expr: equality_expr     // We add precedence to the expressions: NOT > AND > OR > MUL/DIV > ADD/SUB
+
+?equality_expr: iff_expr
+         | equality_expr EQUALS iff_expr      -> eq
+         | equality_expr NOT_EQUALS iff_expr  -> neq
+
+?iff_expr: implies_expr
+         | implies_expr IFF iff_expr -> iff
+
+?implies_expr: or_expr
+         | or_expr IMPLIES implies_expr -> implies
+
+?or_expr: and_expr
+        | or_expr OR and_expr       -> or_
+
+?and_expr: xor_expr
+         | and_expr AND xor_expr  -> and_
+
+?xor_expr: unary_expr
+         | unary_expr XOR xor_expr  -> xor
+
+?unary_expr: NOT unary_expr         -> not_
+           | compare_expr
+
+?compare_expr: add_expr
+        | compare_expr LESS_THAN add_expr               -> lt
+        | compare_expr LESS_THAN_OR_EQUALS add_expr      -> lte
+        | compare_expr GREATER_THAN add_expr            -> gt
+        | compare_expr GREATER_THAN_OR_EQUALS add_expr   -> gte
 
 ?add_expr: mul_expr
          | add_expr ADD mul_expr   -> add
          | add_expr SUB mul_expr   -> sub
 
-?mul_expr: or_expr
-         | mul_expr MUL or_expr     -> mul
-         | mul_expr DIV or_expr     -> div
-
-?or_expr: and_expr
-        | or_expr OR and_expr       -> or_
-
-?and_expr: unary_expr
-         | and_expr AND unary_expr  -> and_
-
-?unary_expr: NOT unary_expr         -> not_
-           // | SUB unary_expr         -> neg (Do we need to support negative sign?)
-           | atom
+?mul_expr: atom
+         | mul_expr MUL atom     -> mul
+         | mul_expr DIV atom     -> div
 
 ?atom: "(" expr ")"
      | "true"                               -> true
@@ -35,7 +53,7 @@ grammar = """
      | "flip" NUMBER                        -> flip
      | "discrete" "(" nums ")"              -> discrete
      | "int" "(" INT "," INT ")"            -> int_
-     | "let" IDENT "=" expr "in" expr       -> assign
+     | "let" IDENT ASSIGN expr "in" expr    -> assign
      | "if" expr "then" expr "else" expr    -> if_
      | IDENT                                -> ident
 
@@ -49,6 +67,16 @@ IDENT :  /[a-zA-Z_][a-zA-Z0-9_]*/
 NOT : "!"
 AND :  "&"
 OR  :  "|"
+IMPLIES.2 : "->"
+IFF: "<->"
+EQUALS: "=="
+ASSIGN: "="
+NOT_EQUALS: "!="
+LESS_THAN: "<"
+LESS_THAN_OR_EQUALS: "<="
+GREATER_THAN: ">"
+GREATER_THAN_OR_EQUALS: ">="
+XOR: "^"
 ADD :  "+"
 SUB :  "-"
 MUL :  "*"
@@ -110,8 +138,35 @@ class TreeTransformer(lark.Transformer):
     def div(self, x):
         return node.DivNode(x[0], x[2])
 
+    def implies(self, x):
+        return node.OrNode(node.NotNode(x[0]), x[2])
+
+    def iff(self, x):
+        return node.AndNode( self.implies( x ), self.implies( x[::-1] ) )
+    
+    def eq(self, x):
+        return node.EqualNode( x[0], x[2] )
+
+    def neq(self,x):
+        return node.NotNode( self.eq( x ) )
+    
+    def lt(self,x):
+        return node.LessThanNode( x[0], x[2] )
+    
+    def lte(self,x):
+        return node.OrNode( self.lt(x), self.eq(x) )
+    
+    def gt(self,x):
+        return node.NotNode( self.lte(x) )
+
+    def gte(self,x):
+        return node.NotNode( self.lt(x) )
+
+    def xor(self,x):
+        return node.AndNode( self.or_(x), node.NotNode( self.and_(x) ) )
+
     def assign(self, x):
-        return node.AssignNode(x[0], x[1], x[2])
+        return node.AssignNode(x[0], x[2], x[3])
 
     def if_(self, x):
         return node.IfNode(x[0], x[1], x[2])

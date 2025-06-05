@@ -76,6 +76,58 @@ def test_type_check(test_parser: lark.Lark) -> None:
         parse_string("int(2, 1) || int(2, 2)", test_parser)
     with pytest.raises(Exception):
         parse_string("!int(2, 1)", test_parser)
+    with pytest.raises(Exception):
+        parse_string("int(2, 1) < true", test_parser)
+    with pytest.raises(Exception):
+        parse_string("int(2, 1) ^ true", test_parser)
+    with pytest.raises(Exception):
+        parse_string("int(2, 1) <-> true", test_parser)
+    with pytest.raises(Exception):
+        parse_string("int(3, 1) > int(3,2) > int(3,3)", test_parser)
+
+def test_implies(test_parser: lark.Lark) -> None:
+    text = "flip(0.1) -> flip(0.5)"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.95, rel=0.02)
+
+def test_iff(test_parser: lark.Lark) -> None:
+    text = "flip(0.25) <-> flip(0.25)"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.6875, rel=0.1)
+
+def test_xor(test_parser: lark.Lark) -> None:
+    text = "flip(0.75) ^ flip(0.25)"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.625, rel=0.1)
+
+def test_int_equals(test_parser: lark.Lark) -> None:
+    text = "int(3,5) == int(3,5)"
+    assert parse_string(text, test_parser)[BoolType(True)] == 1.0
+
+def test_int_not_equals(test_parser: lark.Lark) -> None:
+    text = "int(3,5) != int(3,6)"
+    assert parse_string(text, test_parser)[BoolType(True)] == 1.0
+
+def test_int_equals_and_bool(test_parser: lark.Lark) -> None:
+    text = "(int(3,5) == int(3,5)) & flip( 0.5 )"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.1)
+
+def test_int_equals_bool(test_parser: lark.Lark) -> None:
+    text = "int(3,5) == flip(0.5)"
+    assert parse_string(text, test_parser)[BoolType(False)] == 1.0
+
+def test_int_less_than(test_parser: lark.Lark) -> None:
+    text = "int(3,5) < int(3,7)"
+    text2 = "int(3,7) < int(3,7)"
+    text3 = "int(3,7) <= int(3,7)"
+    assert parse_string(text, test_parser)[BoolType(True)] == 1.0
+    assert parse_string(text2, test_parser)[BoolType(False)] == 1.0
+    assert parse_string(text3, test_parser)[BoolType(True)] == 1.0
+
+def test_int_greater_than(test_parser: lark.Lark) -> None:
+    text = "int(3,7) > int(3,5)"
+    text2 = "int(3,7) > int(3,7)"
+    text3 = "int(3,7) >= int(3,7)"
+    assert parse_string(text, test_parser)[BoolType(True)] == 1.0
+    assert parse_string(text2, test_parser)[BoolType(False)] == 1.0
+    assert parse_string(text3, test_parser)[BoolType(True)] == 1.0
 
 
 def test_int_add(test_parser: lark.Lark) -> None:
