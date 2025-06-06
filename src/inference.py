@@ -11,6 +11,7 @@ class TreeInferencer:
     def __init__(self, tree, variables, seed=None):
         self.tree = tree
         self.variables = variables
+        self.functions = {}
         self.rng = random.Random()
         self.rng.seed(seed)
 
@@ -19,12 +20,54 @@ class TreeInferencer:
         assert res is not None
         return res
 
+    def registerFunction( self, function: node.FunctionNode ):
+        ident, arg_list, expr = function.ident, function.arg_list.args, function.expr
+        self.functions[ident] = [arg_list, expr]
+
+    def processFunction( self, function: node.FunctionCallNode):
+        ident, arg_expr_list = function.ident, function.arg_list.args
+
+        # Check if function exists
+        if( ident not in self.functions ):
+            raise Exception("Function identifier not defined:", ident)
+
+        # Check if length of arguments the same
+        param_list, function_expr = self.functions[ident]
+        if( len( param_list ) != len( arg_expr_list ) ):
+            raise AttributeError(f"Argument Length does not match: Param len {len( param_list )} != Arg len {len(arg_expr_list)}")
+
+        # Process expressions in arg_list
+        arguments = []
+        for expr in arg_expr_list:
+            arguments.append( self.recurseTree( expr ) )
+
+        # Check if arguments all sound
+        var_map = {}
+        for i in range( len( arguments ) ):
+            param_ident, param_type = param_list[i].ident, param_list[i].type
+            arguments[i].verify_types( param_type )
+            var_map[param_ident] = arguments[i]
+
+        # Call function
+        function_tf = TreeInferencer( function_expr, var_map )
+
+        return function_tf.infer()
+
     def recurseTree(self, treeNode) -> DiceType | None:
         if type(treeNode) is BoolType:
             return treeNode
 
         if type(treeNode) is IntType:
             return treeNode
+
+        elif type(treeNode) is node.ProgramNode:
+            for function in treeNode.functions:
+                self.registerFunction( function )
+
+            return self.recurseTree( treeNode.expr )
+
+        elif type(treeNode) is node.FunctionCallNode:
+            return self.processFunction( treeNode )
 
         elif type(treeNode) is node.FlipNode:
             return BoolType(self.rng.random() < treeNode.prob)

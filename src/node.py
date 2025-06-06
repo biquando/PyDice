@@ -1,6 +1,7 @@
 import log
 import math
 import operator
+from dicetypes import DiceType
 
 
 class Node: ...
@@ -191,3 +192,63 @@ class DivNode(BinaryNode):
 
     def __repr__(self):
         return "DivNode" + super().__repr__()
+
+### Function Nodes ##########################################################
+
+class ProgramNode(Node):
+    def __init__(self, nodes):
+        self.functions = []
+
+        n = len( nodes )
+        for i in range( n ):
+            if( i == n - 1 ):
+                self.expr = nodes[i]
+            else:
+                self.functions.append( nodes[i] )
+    
+    def __repr__(self):
+        return f'ProgramNode("{self.functions},{self.expr}")'
+
+class TypeNode(Node): ...
+
+class ArgNode(Node):
+    def __init__(self, ident: str, data_type: DiceType):
+        self.ident = ident
+        self.type = data_type
+    
+    def __repr__(self):
+        return f'ArgNode("{self.ident},{self.type}")'
+
+class ArgListNode(Node):
+    def __init__(self, args: list):
+        self.args = args
+
+    def __repr__(self):
+        return f'ArgListNode("{self.args}")'
+
+class FunctionNode(Node):
+    def __init__(self, ident: str, arg_list: ArgListNode, expr: ExprNode):
+        self.ident = ident
+        self.arg_list = arg_list
+        self.expr = expr
+
+    def __repr__(self):
+        return f'FunctionNode("{self.ident},{self.arg_list},{self.expr}")'
+
+class FunctionCallNode(Node):
+    def __init__(self, ident: str, arg_list: ArgListNode ):
+        self.ident = ident
+        self.arg_list = arg_list
+
+    def __repr__(self):
+        return f'FunctionNode("{self.ident},{self.arg_list}")'
+
+# class IntTypeNode(TypeNode):
+#     def __init__(self, ident: str, width: int):
+#         self.ident = ident
+#         self.width = width
+    
+#     def __repr__(self):
+#         return f'IntTypeNode("{self.ident},{self.width}")'
+
+

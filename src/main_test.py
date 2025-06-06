@@ -167,3 +167,40 @@ def test_basic_discrete(test_parser: lark.Lark) -> None:
     assert res[IntType(2, 1)] == pytest.approx(1 / 3, rel=0.2)
     assert res[IntType(2, 2)] == pytest.approx(1 / 2, rel=0.2)
     assert IntType(2, 3) not in res
+
+def test_no_arg_function(test_parser: lark.Lark) -> None:
+    text = "fun flip_coin(){ flip 0.5 } flip_coin()"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.1)
+
+def test_1_arg_function(test_parser: lark.Lark) -> None:
+    text = "fun flip_coin( a : bool ){ if a then flip 0.5 else true} flip_coin( flip 0.5 )"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.75, rel=0.1)
+
+def test_3_arg_function(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool, b : int( 4 ), c : bool ){ 
+    if b > int(4,5) then a || c else a && c
+    } 
+    flip_coin( flip 0.5, int(4,10), flip 0.5 )
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.75, rel=0.1)
+
+def test_incorrect_function_type_args(test_parser: lark.Lark) -> None:
+    with pytest.raises(Exception):
+        text = """
+        "fun flip_coin( a : bool ){
+        if a then flip 0.5 else true
+        }
+        flip_coin( int(4,10) )
+        """
+        parse_string(text, test_parser)
+
+def test_incorrect_function_length_args(test_parser: lark.Lark) -> None:
+    with pytest.raises(Exception):
+        text = """
+        "fun flip_coin( a : bool ){
+        if a then flip 0.5 else true
+        }
+        flip_coin( true, false )
+        """
+        parse_string(text, test_parser)
