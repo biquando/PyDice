@@ -98,3 +98,16 @@ def test_basic_discrete(test_parser: lark.Lark) -> None:
     assert res[IntType(2, 1)] == pytest.approx(1 / 3, rel=0.2)
     assert res[IntType(2, 2)] == pytest.approx(1 / 2, rel=0.2)
     assert IntType(2, 3) not in res
+
+
+def test_basic_uniform(test_parser: lark.Lark) -> None:
+    text = "uniform(3, 1, 5)"
+    res = parse_string(text, test_parser)
+    assert IntType(3, 0) not in res
+    assert res[IntType(3, 1)] == pytest.approx(1 / 4, rel=0.2)
+    assert res[IntType(3, 2)] == pytest.approx(1 / 4, rel=0.2)
+    assert res[IntType(3, 3)] == pytest.approx(1 / 4, rel=0.2)
+    assert res[IntType(3, 4)] == pytest.approx(1 / 4, rel=0.2)
+    assert IntType(3, 5) not in res
+    assert IntType(3, 6) not in res
+    assert IntType(3, 7) not in res

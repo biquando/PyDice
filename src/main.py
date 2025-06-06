@@ -2,16 +2,23 @@ import lark
 import node
 from inference import Inferencer
 from dicetypes import BoolType, IntType
+import custom_distribution
+
+for dist_class_name, dist_module_name in zip(
+    custom_distribution.distribution_class_names,
+    custom_distribution.distribution_module_names,
+):
+    exec(f"from distributions.{dist_module_name} import {dist_class_name}")
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
-grammar = """
+grammar = f"""
 start :  expr                           -> expr
 
 expr  :  "(" expr ")"                   -> paren
       |  "true"                         -> true
       |  "false"                        -> false
       |  "flip" NUMBER                  -> flip
-      |  "discrete" "(" nums ")"        -> discrete
+      |  custom                         -> custom
       |  "int" "(" INT "," INT ")"      -> int_
       |  "!" expr                       -> not_     // FIXME: give ! higher
       |  "let" IDENT "=" expr "in" expr -> assign   //  precedence than & or |
@@ -24,8 +31,13 @@ expr  :  "(" expr ")"                   -> paren
       |  expr DIV expr                  -> div
       |  "if" expr "then" expr "else" expr  -> if_
 
+{custom_distribution.grammar}
+
 nums  :  NUMBER                         -> nums_single
       |  NUMBER "," nums                -> nums_recurse
+
+ints  : INT                             -> ints_single
+      | INT "," ints                    -> ints_recurse
 
 // Terminals
 %import common.NUMBER
@@ -49,9 +61,8 @@ DIV.2 :  "/"
 # a `lark.Tree` node and replace it with the return value.
 class TreeTransformer(lark.Transformer):
     def expr(self, x):  # NOTE: x is a list of terminals & nonterminals in the
-        return x[0]  #       rule, not including tokens specified by double
-        #       quotes in the grammar
-
+        return x[0]     #       rule, not including tokens specified by double
+                        #       quotes in the grammar
     def paren(self, x):
         return x[0]
 
@@ -67,8 +78,16 @@ class TreeTransformer(lark.Transformer):
     def flip(self, x):
         return node.FlipNode(x[0])
 
-    def discrete(self, x):
-        return node.DiscreteNode(x[0])
+    def custom(self, x):
+        return x[0]
+
+    # This dynamically creates a new method for each custom distribution
+    for dist_class, dist_class_name  in zip(
+        custom_distribution.distribution_classes,
+        custom_distribution.distribution_class_names,
+    ):
+        exec(f"def custom_{dist_class.NAME}(self, x): "
+           + f"return {dist_class_name}(*x)")
 
     def int_(self, x):
         return IntType(x[0], x[1])
@@ -104,6 +123,12 @@ class TreeTransformer(lark.Transformer):
         return [x[0]]
 
     def nums_recurse(self, x):
+        return [x[0]] + x[1]
+
+    def ints_single(self, x):
+        return [x[0]]
+
+    def ints_recurse(self, x):
         return [x[0]] + x[1]
 
     def IDENT(self, token):
