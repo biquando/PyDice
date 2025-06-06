@@ -8,10 +8,10 @@ from dicetypes import DiceType, BoolType, IntType
 
 # Only does MC for the particular tree
 class TreeInferencer:
-    def __init__(self, tree, variables, seed=None):
+    def __init__(self, tree, variables, seed=None, functions = {}):
         self.tree = tree
         self.variables = variables
-        self.functions = {}
+        self.functions = functions # Could be cool for recursion?
         self.rng = random.Random()
         self.rng.seed(seed)
 
@@ -21,11 +21,11 @@ class TreeInferencer:
         return res
 
     def registerFunction( self, function: node.FunctionNode ):
-        ident, arg_list, expr = function.ident, function.arg_list.args, function.expr
+        ident, arg_list, expr = function.ident, function.arg_list_node.args, function.expr
         self.functions[ident] = [arg_list, expr]
 
     def processFunction( self, function: node.FunctionCallNode):
-        ident, arg_expr_list = function.ident, function.arg_list.args
+        ident, arg_expr_list = function.ident, function.arg_list_node.args
 
         # Check if function exists
         if( ident not in self.functions ):
@@ -49,7 +49,8 @@ class TreeInferencer:
             var_map[param_ident] = arguments[i]
 
         # Call function
-        function_tf = TreeInferencer( function_expr, var_map )
+        # Can allow recursion by passing in existing functions.
+        function_tf = TreeInferencer( function_expr, var_map, functions = self.functions )
 
         return function_tf.infer()
 

@@ -204,3 +204,24 @@ def test_incorrect_function_length_args(test_parser: lark.Lark) -> None:
         flip_coin( true, false )
         """
         parse_string(text, test_parser)
+
+def test_2_functions(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else true
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin( flip 0.9 ) && flip_coin2( flip 0.1 )
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2475, rel=0.1)
+
+def test_recursive_function(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin(){
+    if flip 0.5 then true else flip_coin()
+    }
+    flip_coin()
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == 1.0

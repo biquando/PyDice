@@ -77,7 +77,7 @@ class IfNode(ExprNode):
 
     def __repr__(self):
         return (
-            "AssignNode(\n"
+            "IfNode(\n"
             + log.indent(self.cond)+"\n"
             + log.indent(self.true_expr)+"\n"
             + log.indent(self.false_expr)+"\n"
@@ -227,21 +227,21 @@ class ArgListNode(Node):
         return f'ArgListNode("{self.args}")'
 
 class FunctionNode(Node):
-    def __init__(self, ident: str, arg_list: ArgListNode, expr: ExprNode):
+    def __init__(self, ident: str, arg_list_node: ArgListNode, expr: ExprNode):
         self.ident = ident
-        self.arg_list = arg_list
+        self.arg_list_node = arg_list_node
         self.expr = expr
 
     def __repr__(self):
-        return f'FunctionNode("{self.ident},{self.arg_list},{self.expr}")'
+        return f'FunctionNode("{self.ident},{self.arg_list_node},{self.expr}")'
 
 class FunctionCallNode(Node):
-    def __init__(self, ident: str, arg_list: ArgListNode ):
+    def __init__(self, ident: str, arg_list_node: ArgListNode ):
         self.ident = ident
-        self.arg_list = arg_list
+        self.arg_list_node = arg_list_node
 
     def __repr__(self):
-        return f'FunctionNode("{self.ident},{self.arg_list}")'
+        return f'FunctionNode("{self.ident},{self.arg_list_node}")'
 
 # class IntTypeNode(TypeNode):
 #     def __init__(self, ident: str, width: int):
