@@ -15,5 +15,5 @@ pytest
 ## Adding a new distribution
 
 To add a custom probability distribution, you only need to create a new
-python file in `distributions/` that contains a class inheriting from
+python file in `src/distributions/` that contains a class inheriting from
 `CustomDistribution`. See `uniform.py` for an example.
