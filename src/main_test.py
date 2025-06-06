@@ -54,11 +54,11 @@ def test_basic_and(test_parser: lark.Lark) -> None:
     )
 
 def test_logic_precedence(test_parser: lark.Lark) -> None:
-    text = "flip(0.5) | flip(0.5) & flip(0.2)"
+    text = "flip 0.5 || flip 0.5 && flip 0.2"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.55, rel=0.02)
 
 def test_NOT_precedence(test_parser: lark.Lark) -> None:
-    text = "!flip(0.1) & flip(0.5) & !(flip(0.5) | flip( 0.5 ))"
+    text = "!flip 0.1 && flip 0.5 && !(flip 0.5 || flip 0.5 )"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.1125, rel=0.02)
 
 def test_type_check(test_parser: lark.Lark) -> None:
@@ -86,15 +86,15 @@ def test_type_check(test_parser: lark.Lark) -> None:
         parse_string("int(3, 1) > int(3,2) > int(3,3)", test_parser)
 
 def test_implies(test_parser: lark.Lark) -> None:
-    text = "flip(0.1) -> flip(0.5)"
+    text = "flip 0.1 -> flip 0.5"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.95, rel=0.02)
 
 def test_iff(test_parser: lark.Lark) -> None:
-    text = "flip(0.25) <-> flip(0.25)"
+    text = "flip 0.25 <-> flip 0.25"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.6875, rel=0.1)
 
 def test_xor(test_parser: lark.Lark) -> None:
-    text = "flip(0.75) ^ flip(0.25)"
+    text = "flip 0.75 ^ flip 0.25"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.625, rel=0.1)
 
 def test_int_equals(test_parser: lark.Lark) -> None:
@@ -106,11 +106,11 @@ def test_int_not_equals(test_parser: lark.Lark) -> None:
     assert parse_string(text, test_parser)[BoolType(True)] == 1.0
 
 def test_int_equals_and_bool(test_parser: lark.Lark) -> None:
-    text = "(int(3,5) == int(3,5)) & flip( 0.5 )"
+    text = "(int(3,5) == int(3,5)) && flip 0.5"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.1)
 
 def test_int_equals_bool(test_parser: lark.Lark) -> None:
-    text = "int(3,5) == flip(0.5)"
+    text = "int(3,5) == flip 0.5"
     assert parse_string(text, test_parser)[BoolType(False)] == 1.0
 
 def test_int_less_than(test_parser: lark.Lark) -> None:
@@ -155,7 +155,7 @@ def test_int_precedence(test_parser: lark.Lark) -> None:
     assert parse_string(text, test_parser)[IntType(10, 13)] == 1.0
 
 def test_int_bool(test_parser: lark.Lark) -> None:
-    text = "if flip(0.5) then int(3,1) else int(10,2)"
+    text = "if flip 0.5 then int(3,1) else int(10,2)"
     res = parse_string(text, test_parser)
     assert res[IntType(3, 1)] == pytest.approx(0.5, rel=0.1)
     assert res[IntType(10, 2)] == pytest.approx(0.5, rel=0.1)

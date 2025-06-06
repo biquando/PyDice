@@ -72,8 +72,8 @@ nums  :  NUMBER                         -> nums_single
 %import common.INT
 IDENT :  /[a-zA-Z_][a-zA-Z0-9_]*/
 NOT : "!"
-AND :  "&"
-OR  :  "|"
+AND :  "&&"
+OR  :  "||"
 IMPLIES.2 : "->"
 IFF: "<->"
 EQUALS: "=="
