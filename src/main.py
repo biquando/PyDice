@@ -7,7 +7,21 @@ from dicetypes import BoolType, IntType
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
 grammar = """
-?start: expr
+?start: program_expr
+
+?program_expr: (function_expr)* expr -> program
+
+?function_expr: "fun" IDENT "(" [arg_list_expr] ")" "{" expr "}" -> function
+
+?arg_list_expr: arg_expr ("," arg_expr)* -> arg_list
+
+?arg_expr: IDENT ":" type -> arg
+
+?type: "bool"                           -> bool_type
+     //| "(" type "," type ")"            -> tuple_type
+     | "int" "(" INT ")"                 -> int_type
+     //| "list" "(" type ")"              -> list_type
+     //| IDENT                           -> custom_type  // optional: for named types or type variables
 
 // We add precedence to the expression groups: 
 //      Arithmetic Expressions: MUL/DIV > ADD/SUB > LT,LTE,GT,GTE 
@@ -63,6 +77,11 @@ grammar = """
      | "let" IDENT ASSIGN expr "in" expr    -> assign
      | "if" expr "then" expr "else" expr    -> if_
      | IDENT                                -> ident
+     | function_call_expr
+    
+?function_call_expr: IDENT "(" [arg_exprs] ")" -> function_call
+
+?arg_exprs: expr ("," expr)* -> arg_list
 
 nums  :  NUMBER                         -> nums_single
       |  NUMBER "," nums                -> nums_recurse
@@ -192,6 +211,36 @@ class TreeTransformer(lark.Transformer):
 
     def INT(self, token):
         return int(token)
+
+    def program(self, x):
+        return node.ProgramNode( x )
+
+    def bool_type(self, token):
+        return BoolType(True)
+    
+    def int_type(self, x):
+        return IntType(x[0], 0)
+
+    def arg(self, x):
+        return node.ArgNode( x[0], x[1] )
+
+    def arg_list(self, x):
+        args = []
+        for arg in x:
+            args.append( arg )
+        return node.ArgListNode( args )
+
+    def function( self, x ):
+        if( x[1] ):
+            return node.FunctionNode( x[0], x[1], x[2] )
+        else:
+            return node.FunctionNode( x[0], node.ArgListNode([]), x[2] )
+
+    def function_call( self, x ):
+        if( x[1] ):
+            return node.FunctionCallNode( x[0], x[1] )
+        else:
+            return node.FunctionCallNode( x[0], node.ArgListNode([]) )
 
 
 def parse_string(text: str, parser: lark.Lark) -> dict:
