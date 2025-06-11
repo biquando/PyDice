@@ -85,6 +85,7 @@ grammar = f"""
      | "if" expr "then" expr "else" expr    -> if_
      | IDENT                                -> ident
      | function_call_expr
+     | "observe" expr                       -> observe
     
 ?function_call_expr: IDENT "(" [arg_exprs] ")" -> function_call
 
@@ -266,6 +267,9 @@ class TreeTransformer(lark.Transformer):
             return node.FunctionCallNode( x[0], x[1] )
         else:
             return node.FunctionCallNode( x[0], node.ArgListNode([]) )
+
+    def observe(self, x):
+        return node.ObserveNode(x[0])
 
 
 def parse_string(text: str, parser: lark.Lark) -> dict:

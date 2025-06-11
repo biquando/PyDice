@@ -9,17 +9,24 @@ from dicetypes import DiceType, BoolType, IntType
 
 # Only does MC for the particular tree
 class TreeInferencer:
-    def __init__(self, tree, variables, seed=None, functions = {}):
+    def __init__(self, tree, variables, seed=None, functions=None):
         self.tree = tree
         self.variables = variables
-        self.functions = functions # Could be cool for recursion?
+        self.functions = {} if functions is None else functions # Could be cool for recursion?
         self.rng = random.Random()
         self.rng.seed(seed)
 
-    def infer(self) -> DiceType:
+        self.observe_ok = True
+
+    def infer(self) -> DiceType | None:
+        self.observe_ok = True
         res = self.recurseTree(self.tree)
         assert res is not None
-        return res
+
+        if self.observe_ok:
+            return res
+        else:
+            return None
 
     def registerFunction( self, function: node.FunctionNode ):
         ident, arg_list, expr = function.ident, function.arg_list_node.args, function.expr
@@ -103,6 +110,15 @@ class TreeInferencer:
             else:
                 return self.recurseTree(treeNode.false_expr)
 
+        elif type(treeNode) is node.ObserveNode:
+            observation = self.recurseTree(treeNode.observation)
+            if not isinstance(observation, BoolType):
+                raise TypeError("Can't observe a non-bool type")
+
+            if not observation.val:
+                self.observe_ok = False
+            return BoolType(True)
+
         else:
             raise Exception("Tree Node Unknown:", treeNode)
 
@@ -118,8 +134,12 @@ class Inferencer:
 
     def infer(self) -> dict[DiceType, float]:
         results = Counter()
-        for _ in range(self.num_its):
+        num_successful_its = 0
+        while num_successful_its < self.num_its:
             res = self.treeInferencer.infer()
+            if res is None: # This means an observation failed
+                continue
             results[res] += 1
+            num_successful_its += 1
 
         return {outcome: count / self.num_its for outcome, count in results.items()}

@@ -260,3 +260,23 @@ def test_recursive_function(test_parser: lark.Lark) -> None:
     flip_coin()
     """
     assert parse_string(text, test_parser)[BoolType(True)] == 1.0
+
+
+def test_basic_observe(test_parser: lark.Lark) -> None:
+    text = """
+    let x = flip 0.5 in
+    let tmp = observe x in
+    x
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == 1.0
+
+
+def test_xy_observe(test_parser: lark.Lark) -> None:
+    text = """
+    let x = flip 0.2 in
+    let y = flip 0.6 in
+    let tmp = observe !y in
+    x || y
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2, rel=0.05)
+    assert parse_string(text, test_parser)[BoolType(False)] == pytest.approx(0.8, rel=0.05)
