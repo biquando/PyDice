@@ -2,6 +2,7 @@
 import random
 from collections import Counter
 
+import custom_distribution
 import node
 from dicetypes import DiceType, BoolType, IntType
 
@@ -73,14 +74,8 @@ class TreeInferencer:
         elif type(treeNode) is node.FlipNode:
             return BoolType(self.rng.random() < treeNode.prob)
 
-        elif type(treeNode) is node.DiscreteNode:
-            r = self.rng.random()
-            accumulated_prob = 0.0
-            for i, prob in enumerate(treeNode.probs):
-                accumulated_prob += prob
-                if r < accumulated_prob:
-                    return IntType(treeNode.bit_width, i)
-            assert False
+        elif isinstance(treeNode, custom_distribution.CustomDistribution):
+            return treeNode.sample()
 
         elif type(treeNode) is node.IdentNode:
             if treeNode.ident not in self.variables:
