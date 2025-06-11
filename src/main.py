@@ -13,12 +13,12 @@ for dist_class_name, dist_module_name in zip(
     exec(f"from distributions.{dist_module_name} import {dist_class_name}")
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
-grammar = """
+grammar = f"""
 ?start: program_expr
 
 ?program_expr: (function_expr)* expr -> program
 
-?function_expr: "fun" IDENT "(" [arg_list_expr] ")" "{" expr "}" -> function
+?function_expr: "fun" IDENT "(" [arg_list_expr] ")" "{{" expr "}}" -> function
 
 ?arg_list_expr: arg_expr ("," arg_expr)* -> arg_list
 
