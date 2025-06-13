@@ -43,6 +43,7 @@ class AssignNode(ExprNode):
             + ")"
         )
 
+
 class IfNode(ExprNode):
     def __init__(self, cond: ExprNode, true_expr: ExprNode, false_expr: ExprNode):
         self.cond = cond
@@ -57,6 +58,19 @@ class IfNode(ExprNode):
             + log.indent(self.false_expr)+"\n"
             + ")"
         )
+
+
+class ObserveNode(ExprNode):
+    def __init__(self, observation: ExprNode):
+        self.observation = observation
+
+    def __repr__(self):
+        return (
+            "ObserveNode(\n"
+            + log.indent(self.observation)+"\n"
+            + ")"
+        )
+
 
 ### Unary operations ###########################################################
 
