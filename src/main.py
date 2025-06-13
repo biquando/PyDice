@@ -1,7 +1,7 @@
 import lark
 import node
 from inference import Inferencer
-from compiler import TreeCompiler
+from compiler import PyEdaCompiler
 from dicetypes import BoolType, IntType
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
@@ -126,5 +126,5 @@ def parse_string(text: str, parser: lark.Lark) -> dict:
 def parse_string_compile(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
     ir = TreeTransformer().transform(ast)
-    compiled_tree = TreeCompiler(ir)
+    compiled_tree = PyEdaCompiler(ir)
     return compiled_tree.infer()
