@@ -1,43 +1,125 @@
+from pathlib import Path
 import lark
+
 import node
 from inference import Inferencer
 from compiler import PyEdaCompiler
 from dicetypes import BoolType, IntType
+import custom_distribution
+
+for dist_class_name, dist_module_name in zip(
+    custom_distribution.distribution_class_names,
+    custom_distribution.distribution_module_names,
+):
+    exec(f"from distributions.{dist_module_name} import {dist_class_name}")
 
 # See https://lark-parser.readthedocs.io/en/latest/_static/lark_cheatsheet.pdf
-grammar = """
-start :  expr                           -> expr
+grammar = f"""
+?start: program_expr
 
-expr  :  "(" expr ")"                   -> paren
-      |  "true"                         -> true
-      |  "false"                        -> false
-      |  "flip" NUMBER                  -> flip
-      |  "discrete" "(" nums ")"        -> discrete
-      |  "int" "(" INT "," INT ")"      -> int_
-      |  "!" expr                       -> not_     // FIXME: give ! higher
-      |  "let" IDENT "=" expr "in" expr -> assign   //  precedence than & or |
-      |  IDENT                          -> ident
-      |  expr AND expr                  -> and_
-      |  expr OR expr                   -> or_
-      |  expr ADD expr                  -> add
-      |  expr SUB expr                  -> sub
-      |  expr MUL expr                  -> mul
-      |  expr DIV expr                  -> div
-      |  "if" expr "then" expr "else" expr  -> if_
+?program_expr: (function_expr)* expr -> program
+
+?function_expr: "fun" IDENT "(" [arg_list_expr] ")" "{{" expr "}}" -> function
+
+?arg_list_expr: arg_expr ("," arg_expr)* -> arg_list
+
+?arg_expr: IDENT ":" type -> arg
+
+?type: "bool"                           -> bool_type
+     //| "(" type "," type ")"            -> tuple_type
+     | "int" "(" INT ")"                 -> int_type
+     //| "list" "(" type ")"              -> list_type
+     //| IDENT                           -> custom_type  // optional: for named types or type variables
+
+// We add precedence to the expression groups: 
+//      Arithmetic Expressions: MUL/DIV > ADD/SUB > LT,LTE,GT,GTE 
+//      Logical Expressions: NOT > XOR > AND > OR > IMPLIES > IFF
+// Then the precendence in general is:
+//      ARITHMETIC > LOGICAL > EQUALS/NOT_EQUALS
+// Since arithmetic and logical operators don't mix, having them in the same precedence is fine
+
+?expr: equality_expr     
+
+?equality_expr: iff_expr
+         | equality_expr EQUALS iff_expr      -> eq
+         | equality_expr NOT_EQUALS iff_expr  -> neq
+
+?iff_expr: implies_expr
+         | implies_expr IFF iff_expr -> iff
+
+?implies_expr: or_expr
+         | or_expr IMPLIES implies_expr -> implies
+
+?or_expr: and_expr
+        | or_expr OR and_expr       -> or_
+
+?and_expr: xor_expr
+         | and_expr AND xor_expr  -> and_
+
+?xor_expr: unary_expr
+         | unary_expr XOR xor_expr  -> xor
+
+?unary_expr: NOT unary_expr         -> not_
+           | compare_expr
+
+?compare_expr: add_expr
+        | compare_expr LESS_THAN add_expr               -> lt
+        | compare_expr LESS_THAN_OR_EQUALS add_expr      -> lte
+        | compare_expr GREATER_THAN add_expr            -> gt
+        | compare_expr GREATER_THAN_OR_EQUALS add_expr   -> gte
+
+?add_expr: mul_expr
+         | add_expr ADD mul_expr   -> add
+         | add_expr SUB mul_expr   -> sub
+
+?mul_expr: atom
+         | mul_expr MUL atom     -> mul
+         | mul_expr DIV atom     -> div
+
+?atom: "(" expr ")"
+     | "true"                               -> true
+     | "false"                              -> false
+     | "flip" NUMBER                        -> flip
+     | custom                               -> custom
+     | "int" "(" INT "," INT ")"            -> int_
+     | "let" IDENT ASSIGN expr "in" expr    -> assign
+     | "if" expr "then" expr "else" expr    -> if_
+     | IDENT                                -> ident
+     | function_call_expr
+    
+?function_call_expr: IDENT "(" [arg_exprs] ")" -> function_call
+
+?arg_exprs: expr ("," expr)* -> arg_list
+
+{custom_distribution.grammar}
 
 nums  :  NUMBER                         -> nums_single
       |  NUMBER "," nums                -> nums_recurse
+
+ints  : INT                             -> ints_single
+      | INT "," ints                    -> ints_recurse
 
 // Terminals
 %import common.NUMBER
 %import common.INT
 IDENT :  /[a-zA-Z_][a-zA-Z0-9_]*/
-AND.4 :  "&&"
-OR.3  :  "||"
-ADD.1 :  "+"
-SUB.1 :  "-"
-MUL.2 :  "*"
-DIV.2 :  "/"
+NOT : "!"
+AND :  "&&"
+OR  :  "||"
+IMPLIES.2 : "->"
+IFF: "<->"
+EQUALS: "=="
+ASSIGN: "="
+NOT_EQUALS: "!="
+LESS_THAN: "<"
+LESS_THAN_OR_EQUALS: "<="
+GREATER_THAN: ">"
+GREATER_THAN_OR_EQUALS: ">="
+XOR: "^"
+ADD :  "+"
+SUB :  "-"
+MUL :  "*"
+DIV :  "/"
 
 %import common.WS
 %ignore WS
@@ -50,9 +132,8 @@ DIV.2 :  "/"
 # a `lark.Tree` node and replace it with the return value.
 class TreeTransformer(lark.Transformer):
     def expr(self, x):  # NOTE: x is a list of terminals & nonterminals in the
-        return x[0]  #       rule, not including tokens specified by double
-        #       quotes in the grammar
-
+        return x[0]     #       rule, not including tokens specified by double
+                        #       quotes in the grammar
     def paren(self, x):
         return x[0]
 
@@ -68,14 +149,22 @@ class TreeTransformer(lark.Transformer):
     def flip(self, x):
         return node.FlipNode(x[0])
 
-    def discrete(self, x):
-        return node.DiscreteNode(x[0])
+    def custom(self, x):
+        return x[0]
+
+    # This dynamically creates a new method for each custom distribution
+    for dist_class, dist_class_name  in zip(
+        custom_distribution.distribution_classes,
+        custom_distribution.distribution_class_names,
+    ):
+        exec(f"def custom_{dist_class.NAME}(self, x): "
+           + f"return {dist_class_name}(*x)")
 
     def int_(self, x):
         return IntType(x[0], x[1])
 
     def not_(self, x):
-        return node.NotNode(x[0])
+        return node.NotNode(x[1])
 
     def and_(self, x):
         return node.AndNode(x[0], x[2])
@@ -95,8 +184,35 @@ class TreeTransformer(lark.Transformer):
     def div(self, x):
         return node.DivNode(x[0], x[2])
 
+    def implies(self, x):
+        return node.OrNode(node.NotNode(x[0]), x[2])
+
+    def iff(self, x):
+        return node.AndNode( self.implies( x ), self.implies( x[::-1] ) )
+    
+    def eq(self, x):
+        return node.EqualNode( x[0], x[2] )
+
+    def neq(self,x):
+        return node.NotNode( self.eq( x ) )
+    
+    def lt(self,x):
+        return node.LessThanNode( x[0], x[2] )
+    
+    def lte(self,x):
+        return node.OrNode( self.lt(x), self.eq(x) )
+    
+    def gt(self,x):
+        return node.NotNode( self.lte(x) )
+
+    def gte(self,x):
+        return node.NotNode( self.lt(x) )
+
+    def xor(self,x):
+        return node.AndNode( self.or_(x), node.NotNode( self.and_(x) ) )
+
     def assign(self, x):
-        return node.AssignNode(x[0], x[1], x[2])
+        return node.AssignNode(x[0], x[2], x[3])
 
     def if_(self, x):
         return node.IfNode(x[0], x[1], x[2])
@@ -105,6 +221,12 @@ class TreeTransformer(lark.Transformer):
         return [x[0]]
 
     def nums_recurse(self, x):
+        return [x[0]] + x[1]
+
+    def ints_single(self, x):
+        return [x[0]]
+
+    def ints_recurse(self, x):
         return [x[0]] + x[1]
 
     def IDENT(self, token):
@@ -116,12 +238,52 @@ class TreeTransformer(lark.Transformer):
     def INT(self, token):
         return int(token)
 
+    def program(self, x):
+        return node.ProgramNode( x )
+
+    def bool_type(self, token):
+        return BoolType(True)
+    
+    def int_type(self, x):
+        return IntType(x[0], 0)
+
+    def arg(self, x):
+        return node.ArgNode( x[0], x[1] )
+
+    def arg_list(self, x):
+        args = []
+        for arg in x:
+            args.append( arg )
+        return node.ArgListNode( args )
+
+    def function( self, x ):
+        if( x[1] ):
+            return node.FunctionNode( x[0], x[1], x[2] )
+        else:
+            return node.FunctionNode( x[0], node.ArgListNode([]), x[2] )
+
+    def function_call( self, x ):
+        if( x[1] ):
+            return node.FunctionCallNode( x[0], x[1] )
+        else:
+            return node.FunctionCallNode( x[0], node.ArgListNode([]) )
+
 
 def parse_string(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
     ir = TreeTransformer().transform(ast)
+    print( ir )
     inferencer = Inferencer(ir, num_iterations=100000)
     return inferencer.infer()
+
+
+def execute_from_file(
+    p: Path, parser: lark.Lark = lark.Lark(grammar, parser="lalr")
+) -> dict:
+    with open(p, "r") as f:
+        s = f.read()
+
+    return parse_string(s, parser)
 
 def parse_string_compile(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
