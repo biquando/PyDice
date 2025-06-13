@@ -261,18 +261,32 @@ def test_recursive_function(test_parser: lark.Lark) -> None:
     assert parse_string(text, test_parser)[BoolType(True)] == 1.0
 
 def test_flip_compiled(test_parser: lark.Lark) -> None:
-    text = "flip 0.33 "
-    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.33, rel=0.02)
+    text = "flip 0.33"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.33, rel=1e-6)
 
 def test_and_compiled(test_parser: lark.Lark) -> None:
-    text = "flip 0.33 & flip 0.67"
-    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2211, rel=0.02)
+    text = "flip 0.33 && flip 0.67"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2211, rel=1e-6)
 
 def test_orcompiled(test_parser: lark.Lark) -> None:
-    text = "flip 0.33 | flip 0.67"
-    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.777, rel=0.02)
+    text = "flip 0.33 || flip 0.67"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.7789, rel=1e-6)
 
-def test_orcompiled(test_parser: lark.Lark) -> None:
+def test_if_compiled(test_parser: lark.Lark) -> None:
     text = "if flip 0.5 then flip 0.4 else flip 0.9"
-    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.65, rel=0.01)
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.65, rel=1e-6)
 
+def test_basic_assign_compiled(test_parser: lark.Lark) -> None:
+    text = """
+        let a = flip 0.3 in
+        a
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.3, rel=1e-6
+    )
+
+def test_consistent_assign_compiled(test_parser: lark.Lark) -> None:
+    text = "let x = flip 0.5 in if x then x else !x"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        1.0, rel=1e-6
+    )
