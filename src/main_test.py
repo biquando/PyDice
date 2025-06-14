@@ -365,3 +365,30 @@ def test_nested_tuple(test_parser: lark.Lark) -> None:
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
         0.4, rel=1e-2
     )
+
+
+# def test_list_empty(test_parser: lark.Lark) -> None:
+#     text = """
+#         let xs = [] : list(bool) in
+#         (length xs) == int(4, 0)
+#     """
+#     assert parse_string(text, test_parser)[BoolType(True)] == 1.0
+
+
+def test_list_head(test_parser: lark.Lark) -> None:
+    text = "let xs = [flip 0.3, flip 0.2, flip 0.8] in head xs"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.3, rel=1e-2
+    )
+
+
+def test_list_tail(test_parser: lark.Lark) -> None:
+    text = "let xs = [flip 0.3, flip 0.2, flip 0.8] in tail xs"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.8, rel=1e-2
+    )
+
+
+def test_list_length(test_parser: lark.Lark) -> None:
+    text = "let xs = [flip 0.3, flip 0.2, flip 0.8] in length xs"
+    assert parse_string(text, test_parser)[IntType(4, 3)] == 1.0

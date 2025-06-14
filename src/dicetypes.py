@@ -103,3 +103,22 @@ class TupleType(DiceType):
             and self.left == other.left
             and self.right == other.right
         )
+
+
+class ListType(DiceType):
+    def __init__(self, lst, type_):
+        self.lst = lst
+        self.type_ = type_
+
+    def __repr__(self):
+        return f"ListType({", ".join((str(itm) for itm in self.lst))})"
+
+    def __hash__(self):
+        return hash("".join((str(itm) for itm in self.lst)))
+
+    def __eq__(self, other):
+        return BoolType(
+            isinstance(other, ListType) 
+            and len(self.lst) == len(other.lst)
+            and all((left == right for left, right in zip(self.lst, other.lst)))
+        )

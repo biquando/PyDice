@@ -258,6 +258,38 @@ class SndNode(Node):
     def __repr__(self):
         return f"SndNode({self.tup})"
 
+class ListNode(Node):
+    def __init__(self, lst, type_):
+        self.lst = lst
+        self.type_ = type_
+
+    def __repr__(self):
+        return f"ListNode({", ".join((str(itm) for itm in self.lst))})"
+
+
+class HeadNode(Node):
+    def __init__(self, lst):
+        self.lst = lst
+
+    def __repr__(self):
+        return f"HeadNode({self.lst})"
+
+
+class TailNode(Node):
+    def __init__(self, lst):
+        self.lst = lst
+
+    def __repr__(self):
+        return f"TailNode({self.lst})"
+
+
+class LengthNode(Node):
+    def __init__(self, lst):
+        self.lst = lst
+
+    def __repr__(self):
+        return f"LengthNode({self.lst})"
+
 
 # class IntTypeNode(TypeNode):
 #     def __init__(self, ident: str, width: int):

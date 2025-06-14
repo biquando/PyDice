@@ -4,7 +4,7 @@ import lark
 import node
 from inference import Inferencer
 from compiler import PyEdaCompiler
-from dicetypes import BoolType, IntType, TupleType
+from dicetypes import BoolType, IntType, TupleType, ListType, DiceType
 import custom_distribution
 
 for dist_class_name, dist_module_name in zip(
@@ -28,7 +28,7 @@ grammar = f"""
 ?type: "bool"                           -> bool_type
      | "(" type "," type ")"            -> tuple_type
      | "int" "(" INT ")"                 -> int_type
-     //| "list" "(" type ")"              -> list_type
+     | "[]" type                      -> list_type
      //| IDENT                           -> custom_type  // optional: for named types or type variables
 
 // We add precedence to the expression groups: 
@@ -41,6 +41,9 @@ grammar = f"""
 ?expr: equality_expr
          | "fst" expr                -> fst
          | "snd" expr                -> snd
+         | "head" expr               -> head
+         | "tail" expr               -> tail
+         | "length" expr             -> length
 
 ?equality_expr: iff_expr
          | equality_expr EQUALS iff_expr      -> eq
@@ -80,6 +83,7 @@ grammar = f"""
 
 ?atom: "(" expr ")"
      | "(" expr "," expr ")"                -> tuple_expr
+     | "[" expr ("," expr)* "]"             -> list_expr
      | "true"                               -> true
      | "false"                              -> false
      | "flip" NUMBER                        -> flip
@@ -193,6 +197,9 @@ class TreeTransformer(lark.Transformer):
     def tuple_expr(self, x):
         return node.TupleNode(x[0], x[1])
 
+    def list_expr(self, x):
+        return node.ListNode(x, DiceType)
+
     def implies(self, x):
         return node.OrNode(node.NotNode(x[0]), x[2])
 
@@ -259,11 +266,23 @@ class TreeTransformer(lark.Transformer):
     def tuple_type(self, x):
         return TupleType(x[0], x[1])
 
+    def list_type(self, x):
+        return ListType([], x[0])
+
     def fst(self, x):
         return node.FstNode(x[0])
 
     def snd(self, x):
         return node.SndNode(x[0])
+
+    def head(self, x):
+        return node.HeadNode(x[0])
+
+    def tail(self, x):
+        return node.TailNode(x[0])
+
+    def length(self, x):
+        return node.LengthNode(x[0])
 
     def arg(self, x):
         return node.ArgNode(x[0], x[1])

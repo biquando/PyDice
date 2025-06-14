@@ -4,7 +4,7 @@ from collections import Counter
 
 import custom_distribution
 import node
-from dicetypes import DiceType, BoolType, IntType, TupleType
+from dicetypes import DiceType, BoolType, IntType, TupleType, ListType
 
 
 # Only does MC for the particular tree
@@ -145,6 +145,24 @@ class TreeInferencer:
             if not isinstance(tup, TupleType):
                 raise Exception("`snd` can only be used on tuples")
             return tup.right
+        elif type(treeNode) is node.ListNode:
+            lst = [self.recurseTree(val) for val in treeNode.lst]
+            return ListType(lst, DiceType)
+        elif type(treeNode) is node.HeadNode:
+            lst = self.recurseTree(treeNode.lst)
+            if not isinstance(lst, ListType):
+                raise Exception("`head` can only be used on lists")
+            return lst.lst[0]
+        elif type(treeNode) is node.TailNode:
+            lst = self.recurseTree(treeNode.lst)
+            if not isinstance(lst, ListType):
+                raise Exception("`tail` can only be used on lists")
+            return lst.lst[-1]
+        elif type(treeNode) is node.LengthNode:
+            lst_node = self.recurseTree(treeNode.lst)
+            if not isinstance(lst_node, ListType):
+                raise Exception("`length` can only be used on lists")
+            return IntType(4, len(lst_node.lst))
         else:
             raise Exception("Tree Node Unknown:", treeNode)
 
