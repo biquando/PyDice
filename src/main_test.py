@@ -56,12 +56,16 @@ def test_basic_and(test_parser: lark.Lark) -> None:
 
 def test_logic_precedence(test_parser: lark.Lark) -> None:
     text = "flip 0.5 || flip 0.5 && flip 0.2"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.55, rel=0.02)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.55, rel=0.02
+    )
 
 
 def test_NOT_precedence(test_parser: lark.Lark) -> None:
     text = "!flip 0.1 && flip 0.5 && !(flip 0.5 || flip 0.5 )"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.1125, rel=0.02)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.1125, rel=0.02
+    )
 
 
 def test_type_check(test_parser: lark.Lark) -> None:
@@ -91,17 +95,23 @@ def test_type_check(test_parser: lark.Lark) -> None:
 
 def test_implies(test_parser: lark.Lark) -> None:
     text = "flip 0.1 -> flip 0.5"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.95, rel=0.02)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.95, rel=0.02
+    )
 
 
 def test_iff(test_parser: lark.Lark) -> None:
     text = "flip 0.25 <-> flip 0.25"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.6875, rel=0.1)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.6875, rel=0.1
+    )
 
 
 def test_xor(test_parser: lark.Lark) -> None:
     text = "flip 0.75 ^ flip 0.25"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.625, rel=0.1)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.625, rel=0.1
+    )
 
 
 def test_int_equals(test_parser: lark.Lark) -> None:
@@ -116,7 +126,9 @@ def test_int_not_equals(test_parser: lark.Lark) -> None:
 
 def test_int_equals_and_bool(test_parser: lark.Lark) -> None:
     text = "(int(3,5) == int(3,5)) && flip 0.5"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.1)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.5, rel=0.1
+    )
 
 
 def test_int_equals_bool(test_parser: lark.Lark) -> None:
@@ -164,7 +176,7 @@ def test_int_div(test_parser: lark.Lark) -> None:
 
 def test_int_precedence(test_parser: lark.Lark) -> None:
     text = "int(10,4) * int(10,2) + int(10,10) / ( int(10,5) - int(10,3) )"
-    print( parse_string(text, test_parser) )
+    print(parse_string(text, test_parser))
     assert parse_string(text, test_parser)[IntType(10, 13)] == 1.0
 
 
@@ -183,6 +195,7 @@ def test_basic_discrete(test_parser: lark.Lark) -> None:
     assert res[IntType(2, 2)] == pytest.approx(1 / 2, rel=0.2)
     assert IntType(2, 3) not in res
 
+
 def test_basic_uniform(test_parser: lark.Lark) -> None:
     text = "uniform(3, 1, 5)"
     res = parse_string(text, test_parser)
@@ -198,12 +211,18 @@ def test_basic_uniform(test_parser: lark.Lark) -> None:
 
 def test_no_arg_function(test_parser: lark.Lark) -> None:
     text = "fun flip_coin(){ flip 0.5 } flip_coin()"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.1)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.5, rel=0.1
+    )
 
 
 def test_1_arg_function(test_parser: lark.Lark) -> None:
-    text = "fun flip_coin( a : bool ){ if a then flip 0.5 else true} flip_coin( flip 0.5 )"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.75, rel=0.1)
+    text = (
+        "fun flip_coin( a : bool ){ if a then flip 0.5 else true} flip_coin( flip 0.5 )"
+    )
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.75, rel=0.1
+    )
 
 
 def test_3_arg_function(test_parser: lark.Lark) -> None:
@@ -213,7 +232,9 @@ def test_3_arg_function(test_parser: lark.Lark) -> None:
     } 
     flip_coin( flip 0.5, int(4,10), flip 0.5 )
     """
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.75, rel=0.1)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.75, rel=0.1
+    )
 
 
 def test_incorrect_function_type_args(test_parser: lark.Lark) -> None:
@@ -248,7 +269,9 @@ def test_2_functions(test_parser: lark.Lark) -> None:
     }
     flip_coin( flip 0.9 ) && flip_coin2( flip 0.1 )
     """
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2475, rel=0.1)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.2475, rel=0.1
+    )
 
 
 def test_recursive_function(test_parser: lark.Lark) -> None:
@@ -277,28 +300,40 @@ def test_xy_observe(test_parser: lark.Lark) -> None:
     let tmp = observe !y in
     x || y
     """
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2, rel=0.05)
-    assert parse_string(text, test_parser)[BoolType(False)] == pytest.approx(0.8, rel=0.05)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.2, rel=0.05
+    )
+    assert parse_string(text, test_parser)[BoolType(False)] == pytest.approx(
+        0.8, rel=0.05
+    )
 
 
 def test_flip_compiled(test_parser: lark.Lark) -> None:
     text = "flip 0.33"
-    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.33, rel=1e-6)
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.33, rel=1e-6
+    )
 
 
 def test_and_compiled(test_parser: lark.Lark) -> None:
     text = "flip 0.33 && flip 0.67"
-    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2211, rel=1e-6)
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.2211, rel=1e-6
+    )
 
 
 def test_orcompiled(test_parser: lark.Lark) -> None:
     text = "flip 0.33 || flip 0.67"
-    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.7789, rel=1e-6)
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.7789, rel=1e-6
+    )
 
 
 def test_if_compiled(test_parser: lark.Lark) -> None:
     text = "if flip 0.5 then flip 0.4 else flip 0.9"
-    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.65, rel=1e-6)
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.65, rel=1e-6
+    )
 
 
 def test_basic_assign_compiled(test_parser: lark.Lark) -> None:
@@ -315,4 +350,18 @@ def test_consistent_assign_compiled(test_parser: lark.Lark) -> None:
     text = "let x = flip 0.5 in if x then x else !x"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
         1.0, rel=1e-6
+    )
+
+
+def test_tuple(test_parser: lark.Lark) -> None:
+    text = "let x = (flip 0.1, flip 0.4) in snd x"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.4, rel=1e-2
+    )
+
+
+def test_nested_tuple(test_parser: lark.Lark) -> None:
+    text = "let x = (flip 0.1, (flip 0.4, flip 0.7)) in fst (snd x)"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.4, rel=1e-2
     )
