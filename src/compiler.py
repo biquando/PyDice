@@ -127,6 +127,7 @@ class PyEdaCompiler:
             arg_expr_compiled = self.recurseTree(arg_expr)
             parameter_expression[formal_param] = arg_expr_compiled
         list_of_clauses = []
+        reset_flips = {}
         for satisfiability in self.function_to_compile[ident]:
             clause_expr = []
             for var, val in satisfiability.items():
@@ -139,10 +140,14 @@ class PyEdaCompiler:
                     probability = self.flip_prob[var]
                     # we need to reset flips so that they are independent between function calls
                     # see paper section 4.3 for more details
-                    flip_var = exprvar('f', self.flip_label)
-                    self.flip_prob[str(flip_var)] = probability
-                    self.flip_label += 1
-                    literal = flip_var
+                    if var not in reset_flips:
+                        flip_var = exprvar('f', self.flip_label)
+                        reset_flips[var] = str(flip_var)
+                        self.flip_prob[str(flip_var)] = probability
+                        self.flip_label += 1
+                        literal = flip_var
+                    else:
+                        literal = reset_flips[var]
                 if val == 0:
                     literal = Not(literal)
                 clause_expr.append(literal)
