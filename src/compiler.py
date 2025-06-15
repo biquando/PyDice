@@ -6,7 +6,8 @@ from pyeda.inter import *
 class PyEdaCompiler:
     def __init__(self, tree):
         self.tree = tree
-        self.variable_prob = {}
+        self.variable_asgn = {}
+        self.flip_prob = {}
         self.flip_label = 0
         self.function_to_node = {}
         self.function_to_compile = {}
@@ -35,9 +36,9 @@ class PyEdaCompiler:
             for var, val in satisfiability.items():
                 var = str(var)
                 if val == 0:
-                    clause_prob *= 1.0 - self.variable_prob[var]
+                    clause_prob *= 1.0 - self.flip_prob[var]
                 else:
-                    clause_prob *= self.variable_prob[var]
+                    clause_prob *= self.flip_prob[var]
             prob += clause_prob
         return {BoolType(True): prob, BoolType(False): 1.0-prob}
 
@@ -105,37 +106,48 @@ class PyEdaCompiler:
     def compileFunc(self, func):
         expr, formal_param_list = self.function_to_node[func].expr, self.function_to_node[func].arg_list_node.args
         for formal_param in formal_param_list:
-            self.variable_prob[str(formal_param.ident)] = -1
+            self.variable_asgn[str(formal_param.ident)] = None #dummy values and a hack - these never get filled!
         eda_expr = self.recurseTree(expr)
         compiled_bdd = expr2bdd(eda_expr)
         self.function_to_compile[func] = list(compiled_bdd.satisfy_all())
     
     def processFunc(self, treeNode) -> expr:
         ident, arg_expr_list = treeNode.ident, treeNode.arg_list_node.args
-
+        parameter_expression = {}
         # Check if function exists
         if( ident not in self.function_to_node ):
             raise Exception("Function identifier not defined:", ident)
         formal_param_list = self.function_to_node[ident].arg_list_node.args
+        formal_param_list_names = []
+        for formal_param in formal_param_list:
+            formal_param_list_names.append(formal_param.ident)
         if len(arg_expr_list) != len(formal_param_list):
             raise AttributeError(f"Argument Length does not match: Param len {len( formal_param_list )} != Arg len {len(arg_expr_list)}")
-        for arg_expr, formal_param in zip(arg_expr_list, formal_param_list):
-            compiled_tree_val = self.infer_tree(arg_expr)[BoolType(True)]
-            self.variable_prob[str(formal_param.ident)] = compiled_tree_val
-        prob = 0.0
+        for arg_expr, formal_param in zip(arg_expr_list, formal_param_list_names):
+            arg_expr_compiled = self.recurseTree(arg_expr)
+            parameter_expression[formal_param] = arg_expr_compiled
+        list_of_clauses = []
         for satisfiability in self.function_to_compile[ident]:
-            clause_prob = 1.0
+            clause_expr = []
             for var, val in satisfiability.items():
                 var = str(var)
-                if val == 0:
-                    clause_prob *= 1.0 - self.variable_prob[var]
+                literal = None
+                if var in formal_param_list_names:
+                    literal = parameter_expression[var]
                 else:
-                    clause_prob *= self.variable_prob[var]
-            prob += clause_prob
-        result_var = exprvar(ident, self.function_results[ident])
-        self.function_results[ident] += 1
-        self.variable_prob[str(result_var)] = prob
-        return result_var
+                    # this has to be a flip
+                    probability = self.flip_prob[var]
+                    # we need to reset flips so that they are independent between function calls
+                    # see paper section 4.3 for more details
+                    flip_var = exprvar('f', self.flip_label)
+                    self.flip_prob[str(flip_var)] = probability
+                    self.flip_label += 1
+                    literal = flip_var
+                if val == 0:
+                    literal = Not(literal)
+                clause_expr.append(literal)
+            list_of_clauses.append(And(*clause_expr))
+        return Or(*list_of_clauses)
 
     def recurseTree(self, treeNode)-> expr:
         if type(treeNode) is node.ProgramNode:
@@ -149,7 +161,7 @@ class PyEdaCompiler:
 
         elif type(treeNode) is node.FlipNode:
             flip_var = exprvar('f', self.flip_label)
-            self.variable_prob[str(flip_var)] = treeNode.prob
+            self.flip_prob[str(flip_var)] = treeNode.prob
             self.flip_label += 1
             return flip_var
 
@@ -180,13 +192,14 @@ class PyEdaCompiler:
             return expr(Or(And(cond, true_expr), And(Not(cond), false_expr)))
         
         elif type(treeNode) is node.IdentNode:
-            if treeNode.ident not in self.variable_prob:
+            if treeNode.ident not in self.variable_asgn:
                 raise Exception("Identifier not defined:", treeNode.ident)
-            return exprvar(treeNode.ident)
+            if self.variable_asgn[str(treeNode.ident)] == None:
+                return exprvar(treeNode.ident)
+            return self.variable_asgn[str(treeNode.ident)] 
 
         elif type(treeNode) is node.AssignNode:
-            compiled_tree_val = self.infer_tree(treeNode.val)[BoolType(True)]
-            self.variable_prob[treeNode.ident] = compiled_tree_val
+            self.variable_asgn[str(treeNode.ident)] = self.recurseTree(treeNode.val)
             return self.recurseTree(treeNode.rest)
             
         elif type(treeNode) is node.FunctionCallNode:
