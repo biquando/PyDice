@@ -59,7 +59,6 @@ class TreeInferencer:
         # Call function
         # Can allow recursion by passing in existing functions.
         function_tf = TreeInferencer( function_expr, var_map, functions = self.functions )
-
         return function_tf.infer()
 
     def recurseTree(self, treeNode) -> DiceType | None:
@@ -76,7 +75,11 @@ class TreeInferencer:
             return self.recurseTree( treeNode.expr )
 
         elif type(treeNode) is node.FunctionCallNode:
-            return self.processFunction( treeNode )
+            call_return =  self.processFunction( treeNode )
+            # if we call some other function and its observation is invalid, ours is too!
+            if call_return is None:
+                self.observe_ok = False
+            return call_return
 
         elif type(treeNode) is node.FlipNode:
             return BoolType(self.rng.random() < treeNode.prob)
@@ -114,7 +117,6 @@ class TreeInferencer:
             observation = self.recurseTree(treeNode.observation)
             if not isinstance(observation, BoolType):
                 raise TypeError("Can't observe a non-bool type")
-
             if not observation.val:
                 self.observe_ok = False
             return BoolType(True)

@@ -276,7 +276,6 @@ class TreeTransformer(lark.Transformer):
 def parse_string(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
     ir = TreeTransformer().transform(ast)
-    print( ir )
     inferencer = Inferencer(ir, num_iterations=100000)
     return inferencer.infer()
 
