@@ -250,6 +250,18 @@ def test_2_functions(test_parser: lark.Lark) -> None:
     """
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2475, rel=0.1)
 
+def test_call_in_call(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else true
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin2( flip_coin (flip 0.9))
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.225, rel=0.1)
+
 
 def test_recursive_function(test_parser: lark.Lark) -> None:
     text = """
@@ -313,6 +325,107 @@ def test_basic_assign_compiled(test_parser: lark.Lark) -> None:
 
 def test_consistent_assign_compiled(test_parser: lark.Lark) -> None:
     text = "let x = flip 0.5 in if x then x else !x"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
         1.0, rel=1e-6
     )
+
+
+def test_nested_assign_compiled(test_parser: lark.Lark) -> None:
+    text = "let x = flip 0.5 in let y = flip 0.5 in if x && y then flip 0.8 else flip 0.1"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.275, rel=1e-6
+    )
+
+
+def test_no_arg_function_compiled(test_parser: lark.Lark) -> None:
+    text = "fun flip_coin(){ flip 0.5 } flip_coin()"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=1e-6)
+
+
+def test_1_arg_function_compiled(test_parser: lark.Lark) -> None:
+    text = "fun flip_coin( a : bool ){ if a then flip 0.5 else true} flip_coin( flip 0.5 )"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.75, rel=1e-6)
+
+
+def test_3_arg_function_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool, b : bool, c : bool ){ 
+    if b then a || c else a && c
+    } 
+    flip_coin( flip 0.5, flip 0.9, flip 0.5 )
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.7, rel=1e-6)
+
+
+def test_incorrect_function_length_args_compiled(test_parser: lark.Lark) -> None:
+    with pytest.raises(Exception):
+        text = """
+        "fun flip_coin( a : bool ){
+        if a then flip 0.5 else true
+        }
+        flip_coin( true, false )
+        """
+        parse_string_compile(text, test_parser)
+
+
+def test_2_functions_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else true
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin( flip 0.9 ) && flip_coin2( flip 0.1 )
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2475, rel=1e-6)
+
+
+def test_call_in_call_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else true
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin2( flip_coin (flip 0.9))
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.225, rel=1e-6)
+
+def test_call_in_def_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else flip_coin2 (flip 0.5)
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin2( flip_coin (flip 0.9))
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2625, rel=1e-6)
+
+
+def test_recursive_function_compiled(test_parser: lark.Lark) -> None:
+    with pytest.raises(Exception):
+        text = """
+        fun flip_coin(){
+        if flip 0.5 then true else flip_coin()
+        }
+        flip_coin()
+        """
+        parse_string_compile(text, test_parser)
+
+
+def test_mutual_recursion_compiled(test_parser: lark.Lark) -> None:
+    with pytest.raises(Exception):
+        text = """
+        fun flip_coin( a : bool ){
+        if a then flip 0.5 else flip_coin2 (flip 0.5)
+        }
+        fun flip_coin2( a : bool ){
+        if !a then flip_coin(flip 0.5) else false
+        }
+        flip_coin2( flip_coin (flip 0.9))
+        """
+        parse_string_compile(text, test_parser)
