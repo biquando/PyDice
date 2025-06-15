@@ -11,6 +11,7 @@ class PyEdaCompiler:
         self.flip_label = 0
         self.function_to_node = {}
         self.function_to_compile = {}
+        self.function_to_observe = {}
         self.adjacency_list = {}
         self.function_results = {}
     
@@ -28,8 +29,8 @@ class PyEdaCompiler:
 
     # infer_tree carries all the extra scoping that has already been added in program
     def infer_tree(self, tree) -> dict[DiceType, float]:
-        expr = self.recurseTree(tree)
-        bdd = expr2bdd(expr)
+        expr, observe = self.recurseTree(tree)
+        bdd = expr2bdd(And(expr, observe))
         prob = 0.0
         for satisfiability in list(bdd.satisfy_all()):
             clause_prob = 1.0
@@ -40,7 +41,18 @@ class PyEdaCompiler:
                 else:
                     clause_prob *= self.flip_prob[var]
             prob += clause_prob
-        return {BoolType(True): prob, BoolType(False): 1.0-prob}
+        observe_bdd = expr2bdd(observe)
+        observe_prob = 0.0
+        for satisfiability in list(observe_bdd.satisfy_all()):
+            clause_prob = 1.0
+            for var, val in satisfiability.items():
+                var = str(var)
+                if val == 0:
+                    clause_prob *= 1.0 - self.flip_prob[var]
+                else:
+                    clause_prob *= self.flip_prob[var]
+            observe_prob += clause_prob
+        return {BoolType(True): prob/observe_prob, BoolType(False): (observe_prob-prob)/observe_prob}
 
     # this tracks all call sites to make sure no recursion or mutual recursion happens
     def precomputeFunc(self, treeNode, curr_func):
@@ -107,9 +119,11 @@ class PyEdaCompiler:
         expr, formal_param_list = self.function_to_node[func].expr, self.function_to_node[func].arg_list_node.args
         for formal_param in formal_param_list:
             self.variable_asgn[str(formal_param.ident)] = None #dummy values and a hack - these never get filled!
-        eda_expr = self.recurseTree(expr)
+        eda_expr, eda_observe = self.recurseTree(expr)
         compiled_bdd = expr2bdd(eda_expr)
         self.function_to_compile[func] = list(compiled_bdd.satisfy_all())
+        compiled_observe_bdd = expr2bdd(eda_observe)
+        self.function_to_observe[func] = list(compiled_observe_bdd.satisfy_all())
     
     def processFunc(self, treeNode) -> expr:
         ident, arg_expr_list = treeNode.ident, treeNode.arg_list_node.args
@@ -123,9 +137,11 @@ class PyEdaCompiler:
             formal_param_list_names.append(formal_param.ident)
         if len(arg_expr_list) != len(formal_param_list):
             raise AttributeError(f"Argument Length does not match: Param len {len( formal_param_list )} != Arg len {len(arg_expr_list)}")
+        clause_of_observes= []
         for arg_expr, formal_param in zip(arg_expr_list, formal_param_list_names):
-            arg_expr_compiled = self.recurseTree(arg_expr)
+            arg_expr_compiled, observed_compiled = self.recurseTree(arg_expr)
             parameter_expression[formal_param] = arg_expr_compiled
+            clause_of_observes.append(observed_compiled)
         list_of_clauses = []
         reset_flips = {}
         for satisfiability in self.function_to_compile[ident]:
@@ -152,63 +168,90 @@ class PyEdaCompiler:
                     literal = Not(literal)
                 clause_expr.append(literal)
             list_of_clauses.append(And(*clause_expr))
-        return Or(*list_of_clauses)
+        # do same substitution for observes
+        list_of_observes = []
+        for satisfiability in self.function_to_observe[ident]:
+            clause_expr = []
+            for var, val in satisfiability.items():
+                var = str(var)
+                literal = None
+                if var in formal_param_list_names:
+                    literal = parameter_expression[var]
+                else:
+                    # this has to be a flip
+                    probability = self.flip_prob[var]
+                    # we need to reset flips so that they are independent between function calls
+                    # see paper section 4.3 for more details
+                    if var not in reset_flips:
+                        flip_var = exprvar('f', self.flip_label)
+                        reset_flips[var] = str(flip_var)
+                        self.flip_prob[str(flip_var)] = probability
+                        self.flip_label += 1
+                        literal = flip_var
+                    else:
+                        literal = reset_flips[var]
+                if val == 0:
+                    literal = Not(literal)
+                clause_expr.append(literal)
+            list_of_observes.append(And(*clause_expr))
 
-    def recurseTree(self, treeNode)-> expr:
+        return Or(*list_of_clauses), And(And(*clause_of_observes), Or(*list_of_observes))
+
+    def recurseTree(self, treeNode)-> (expr, expr):
         if type(treeNode) is node.ProgramNode:
             # no support for functions at this time
             return self.recurseTree( treeNode.expr )
         elif type(treeNode) is BoolType:
             if treeNode.val == True:
-                return expr(1)
+                return expr(1), expr(1)
             else:
-                return expr(0)
+                return expr(0), expr(1)
 
         elif type(treeNode) is node.FlipNode:
             flip_var = exprvar('f', self.flip_label)
             self.flip_prob[str(flip_var)] = treeNode.prob
             self.flip_label += 1
-            return flip_var
+            return flip_var, expr(1)
 
         elif type(treeNode) is node.AndNode:
-            lhs = self.recurseTree(treeNode.left)
-            rhs = self.recurseTree(treeNode.right)
-            return expr(And(lhs, rhs))
+            lhs, lhs_observe = self.recurseTree(treeNode.left)
+            rhs, rhs_observe = self.recurseTree(treeNode.right)
+            return expr(And(lhs, rhs)), expr(And(lhs_observe, rhs_observe))
 
         elif type(treeNode) is node.OrNode:
-            lhs = self.recurseTree(treeNode.left)
-            rhs = self.recurseTree(treeNode.right)
-            return expr(Or(lhs, rhs))
+            lhs, lhs_observe = self.recurseTree(treeNode.left)
+            rhs, rhs_observe = self.recurseTree(treeNode.right)
+            return expr(Or(lhs, rhs)), expr(And(lhs_observe, rhs_observe))
         
         elif type(treeNode) is node.NotNode:
-            operand = self.recurseTree(treeNode.operand)
-            return expr(Not(operand))
+            operand, observe = self.recurseTree(treeNode.operand)
+            return expr(Not(operand)), observe
 
         elif type(treeNode) is node.IfNode:
-            cond = self.recurseTree(treeNode.cond)
-            true_expr = self.recurseTree(treeNode.true_expr)
-            false_expr = self.recurseTree(treeNode.false_expr)
-            return expr(Or(And(cond, true_expr), And(Not(cond), false_expr)))
-        
-        elif type(treeNode) is node.IfNode:
-            cond = self.recurseTree(treeNode.cond)
-            true_expr = self.recurseTree(treeNode.true_expr)
-            false_expr = self.recurseTree(treeNode.false_expr)
-            return expr(Or(And(cond, true_expr), And(Not(cond), false_expr)))
+            cond, _ = self.recurseTree(treeNode.cond)
+            true_expr, true_observe = self.recurseTree(treeNode.true_expr)
+            false_expr, false_observe = self.recurseTree(treeNode.false_expr)
+            return expr(Or(And(cond, true_expr), And(Not(cond), false_expr))), expr(Or(And(cond, true_observe), And(Not(cond), false_observe)))
         
         elif type(treeNode) is node.IdentNode:
             if treeNode.ident not in self.variable_asgn:
                 raise Exception("Identifier not defined:", treeNode.ident)
             if self.variable_asgn[str(treeNode.ident)] == None:
-                return exprvar(treeNode.ident)
-            return self.variable_asgn[str(treeNode.ident)] 
+                return exprvar(treeNode.ident), expr(1)
+            return self.variable_asgn[str(treeNode.ident)], expr(1) 
 
         elif type(treeNode) is node.AssignNode:
-            self.variable_asgn[str(treeNode.ident)] = self.recurseTree(treeNode.val)
-            return self.recurseTree(treeNode.rest)
+            var_value, var_observe = self.recurseTree(treeNode.val)
+            self.variable_asgn[str(treeNode.ident)] = var_value
+            rest_value, rest_observe = self.recurseTree(treeNode.rest)
+            return rest_value, And(var_observe, rest_observe)
             
         elif type(treeNode) is node.FunctionCallNode:
             return self.processFunc(treeNode)
+
+        elif type(treeNode) is node.ObserveNode:
+            obs_val, _ = self.recurseTree(treeNode.observation)
+            return expr(1), obs_val
 
         else:
             raise NotImplementedError

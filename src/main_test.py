@@ -323,6 +323,17 @@ def test_xy_observe(test_parser: lark.Lark) -> None:
     assert parse_string(text, test_parser)[BoolType(False)] == pytest.approx(0.8, rel=0.05)
 
 
+# this test case is explained in section 3.2.2 of the paper
+def test_func_observe(test_parser: lark.Lark) -> None:
+    text = """
+    fun f( x : bool ){
+    let y = x || flip 0.5 in let z = observe y in y
+    }
+    let x = flip 0.1 in let obs = f(x) in x
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.1818, rel=0.05)
+
+
 def test_flip_compiled(test_parser: lark.Lark) -> None:
     text = "flip 0.33"
     assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.33, rel=1e-6)
@@ -482,3 +493,34 @@ def test_mutual_recursion_compiled(test_parser: lark.Lark) -> None:
         flip_coin2( flip_coin (flip 0.9))
         """
         parse_string_compile(text, test_parser)
+
+
+def test_basic_observe_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    let x = flip 0.5 in
+    let tmp = observe x in
+    x
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == 1.0
+
+
+def test_xy_observe_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    let x = flip 0.2 in
+    let y = flip 0.6 in
+    let tmp = observe !y in
+    x || y
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2, rel=0.05)
+    assert parse_string_compile(text, test_parser)[BoolType(False)] == pytest.approx(0.8, rel=0.05)
+
+
+# this test case is explained in section 3.2.2 of the paper
+def test_func_observe_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun f( x : bool ){
+    let y = x || flip 0.5 in let z = observe y in y
+    }
+    let x = flip 0.1 in let obs = f(x) in x
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.1818, rel=0.05)
