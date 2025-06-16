@@ -254,4 +254,5 @@ class PyEdaCompiler:
             return expr(1), obs_val
 
         else:
-            raise NotImplementedError
+            raise NotImplementedError("PyDice does not support BDD inference on"
+                + " this program")
