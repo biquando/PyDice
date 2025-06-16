@@ -306,7 +306,7 @@ class ListNode(Node):
         self.type_ = type_
 
     def __repr__(self):
-        return f"ListNode({", ".join((str(itm) for itm in self.lst))})"
+        return f"ListNode({', '.join((str(itm) for itm in self.lst))})"
 
 
 class HeadNode(Node):

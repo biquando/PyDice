@@ -121,7 +121,7 @@ class ListType(DiceType):
         self.type_ = type_
 
     def __repr__(self):
-        return f"ListType({", ".join((str(itm) for itm in self.lst))})"
+        return f"ListType({', '.join((str(itm) for itm in self.lst))})"
 
     def __hash__(self):
         return hash("".join((str(itm) for itm in self.lst)))
