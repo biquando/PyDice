@@ -1,7 +1,7 @@
 import log
 import math
 import operator
-from dicetypes import DiceType
+from dicetypes import BoolType, DiceType, IntType, ListType
 
 
 class Node: ...
@@ -53,9 +53,12 @@ class IfNode(ExprNode):
     def __repr__(self):
         return (
             "IfNode(\n"
-            + log.indent(self.cond)+"\n"
-            + log.indent(self.true_expr)+"\n"
-            + log.indent(self.false_expr)+"\n"
+            + log.indent(self.cond)
+            + "\n"
+            + log.indent(self.true_expr)
+            + "\n"
+            + log.indent(self.false_expr)
+            + "\n"
             + ")"
         )
 
@@ -65,11 +68,7 @@ class ObserveNode(ExprNode):
         self.observation = observation
 
     def __repr__(self):
-        return (
-            "ObserveNode(\n"
-            + log.indent(self.observation)+"\n"
-            + ")"
-        )
+        return "ObserveNode(\n" + log.indent(self.observation) + "\n" + ")"
 
 
 ### Unary operations ###########################################################
@@ -81,20 +80,38 @@ class UnaryNode(ExprNode):
         self.op = lambda _: None
 
     def __repr__(self):
-        return (
-            "(\n"
-            + log.indent(self.operand)
-            + "\n)"
-        )
+        return "(\n" + log.indent(self.operand) + "\n)"
 
 
 class NotNode(UnaryNode):
     def __init__(self, operand: ExprNode):
         super().__init__(operand)
-        self.op = lambda x: x.__not__() # can't override not operator for object
+        self.op = lambda x: x.__not__()  # can't override not operator for object
 
     def __repr__(self):
         return "NotNode" + super().__repr__()
+
+
+# This is unary because the shift amount is a literal, not an expression
+class LeftShiftNode(UnaryNode):
+    def __init__(self, left: ExprNode, amt: int):
+        super().__init__(left)
+        self.amt = amt
+        self.op = lambda x: x << self.amt
+
+    def __repr__(self):
+        return "LeftShiftNode" + super().__repr__()
+
+
+# This is unary because the shift amount is a literal, not an expression
+class RightShiftNode(UnaryNode):
+    def __init__(self, left: ExprNode, amt: int):
+        super().__init__(left)
+        self.amt = amt
+        self.op = lambda x: x >> self.amt
+
+    def __repr__(self):
+        return "RightShiftNode" + super().__repr__()
 
 
 ### Binary operations ##########################################################
@@ -107,13 +124,7 @@ class BinaryNode(ExprNode):
         self.op = lambda _, __: None
 
     def __repr__(self):
-        return (
-            "(\n"
-            + log.indent(self.left)
-            + ",\n"
-            + log.indent(self.right)
-            + "\n)"
-        )
+        return "(\n" + log.indent(self.left) + ",\n" + log.indent(self.right) + "\n)"
 
 
 class AndNode(BinaryNode):
@@ -133,6 +144,7 @@ class OrNode(BinaryNode):
     def __repr__(self):
         return "OrNode" + super().__repr__()
 
+
 class EqualNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
         super().__init__(left, right)
@@ -140,6 +152,7 @@ class EqualNode(BinaryNode):
 
     def __repr__(self):
         return "EqualNode" + super().__repr__()
+
 
 class LessThanNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
@@ -149,6 +162,7 @@ class LessThanNode(BinaryNode):
     def __repr__(self):
         return "LessThanNode" + super().__repr__()
 
+
 class AddNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
         super().__init__(left, right)
@@ -156,6 +170,7 @@ class AddNode(BinaryNode):
 
     def __repr__(self):
         return "AddNode" + super().__repr__()
+
 
 class SubNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
@@ -165,6 +180,7 @@ class SubNode(BinaryNode):
     def __repr__(self):
         return "SubNode" + super().__repr__()
 
+
 class MulNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
         super().__init__(left, right)
@@ -172,6 +188,7 @@ class MulNode(BinaryNode):
 
     def __repr__(self):
         return "MulNode" + super().__repr__()
+
 
 class DivNode(BinaryNode):
     def __init__(self, left: ExprNode, right: ExprNode):
@@ -181,31 +198,73 @@ class DivNode(BinaryNode):
     def __repr__(self):
         return "DivNode" + super().__repr__()
 
+class NthBitNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = lambda x, y: NthBitNode.nth_bit(x, y)
+
+    @staticmethod
+    def nth_bit(n: IntType, number: IntType) -> BoolType:
+        if not isinstance(n, IntType) or not isinstance(number, IntType):
+            raise TypeError(f"nth_bit can only take IntTypes "
+                + "(found {type(n)} and {type(number)})")
+        idx = n.val
+        if idx >= number.width:
+            return BoolType(False)
+        idx = number.width - idx - 1  # for some reason we start from the MSB
+
+        return BoolType(((number.val >> idx) & 1) == 1)
+
+    def __repr__(self):
+        return "NthBitNode" + super().__repr__()
+
+
+class ConcatNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = lambda x, y: ConcatNode.concat(x, y)
+
+    @staticmethod
+    def concat(x: DiceType, y: ListType):
+        if not isinstance(y, ListType):
+            raise TypeError(f"Must concatenate onto a list (found {type(y)})")
+        if not isinstance(x, y.type_):
+            raise TypeError(f"Must concatenate item with matching type ({type(x)} != {y.type_})")
+        return ListType([x] + y.lst, y.type_)
+
+    def __repr__(self):
+        return "ConcatNode" + super().__repr__()
+
+
 ### Function Nodes ##########################################################
+
 
 class ProgramNode(Node):
     def __init__(self, nodes):
         self.functions = []
 
-        n = len( nodes )
-        for i in range( n ):
-            if( i == n - 1 ):
+        n = len(nodes)
+        for i in range(n):
+            if i == n - 1:
                 self.expr = nodes[i]
             else:
-                self.functions.append( nodes[i] )
-    
+                self.functions.append(nodes[i])
+
     def __repr__(self):
         return f'ProgramNode("{self.functions},{self.expr}")'
 
+
 class TypeNode(Node): ...
+
 
 class ArgNode(Node):
     def __init__(self, ident: str, data_type: DiceType):
         self.ident = ident
         self.type = data_type
-    
+
     def __repr__(self):
         return f'ArgNode("{self.ident},{self.type}")'
+
 
 class ArgListNode(Node):
     def __init__(self, args: list):
@@ -213,6 +272,7 @@ class ArgListNode(Node):
 
     def __repr__(self):
         return f'ArgListNode("{self.args}")'
+
 
 class FunctionNode(Node):
     def __init__(self, ident: str, arg_list_node: ArgListNode, expr: ExprNode):
@@ -223,20 +283,68 @@ class FunctionNode(Node):
     def __repr__(self):
         return f'FunctionNode("{self.ident},{self.arg_list_node},{self.expr}")'
 
+
 class FunctionCallNode(Node):
-    def __init__(self, ident: str, arg_list_node: ArgListNode ):
+    def __init__(self, ident: str, arg_list_node: ArgListNode):
         self.ident = ident
         self.arg_list_node = arg_list_node
 
     def __repr__(self):
         return f'FunctionNode("{self.ident},{self.arg_list_node}")'
 
-# class IntTypeNode(TypeNode):
-#     def __init__(self, ident: str, width: int):
-#         self.ident = ident
-#         self.width = width
-    
-#     def __repr__(self):
-#         return f'IntTypeNode("{self.ident},{self.width}")'
+
+class TupleNode(Node):
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    def __repr__(self):
+        return f"TupleNode({self.left}, {self.right})"
 
 
+class FstNode(Node):
+    def __init__(self, tup):
+        self.tup = tup
+
+    def __repr__(self):
+        return f"FstNode({self.tup})"
+
+
+class SndNode(Node):
+    def __init__(self, tup):
+        self.tup = tup
+
+    def __repr__(self):
+        return f"SndNode({self.tup})"
+
+class ListNode(Node):
+    def __init__(self, lst, type_):
+        self.lst = lst
+        self.type_ = type_
+
+    def __repr__(self):
+        return f"ListNode({', '.join((str(itm) for itm in self.lst))})"
+
+
+class HeadNode(Node):
+    def __init__(self, lst):
+        self.lst = lst
+
+    def __repr__(self):
+        return f"HeadNode({self.lst})"
+
+
+class TailNode(Node):
+    def __init__(self, lst):
+        self.lst = lst
+
+    def __repr__(self):
+        return f"TailNode({self.lst})"
+
+
+class LengthNode(Node):
+    def __init__(self, lst):
+        self.lst = lst
+
+    def __repr__(self):
+        return f"LengthNode({self.lst})"
