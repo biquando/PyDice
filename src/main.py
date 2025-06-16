@@ -3,6 +3,7 @@ import lark
 
 import node
 from inference import Inferencer
+from compiler import PyEdaCompiler
 from dicetypes import BoolType, IntType
 import custom_distribution
 
@@ -293,3 +294,9 @@ def execute_from_file(
         s = f.read()
 
     return parse_string(s, parser)
+
+def parse_string_compile(text: str, parser: lark.Lark) -> dict:
+    ast = parser.parse(text)
+    ir = TreeTransformer().transform(ast)
+    compiled_tree = PyEdaCompiler(ir)
+    return compiled_tree.infer()
