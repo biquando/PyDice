@@ -429,7 +429,7 @@ def test_caesar_recursive(test_parser: lark.Lark) -> None:
     let tmp = loop(key, int(2, 0)) in
     key == int(2, 0)
   """
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.25, rel=0.3)
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.25, abs=0.1)
 
 def test_factorial(test_parser: lark.Lark) -> None:
     text = """

@@ -604,12 +604,12 @@ def test_nested_tuple(test_parser: lark.Lark) -> None:
     )
 
 
-# def test_list_empty(test_parser: lark.Lark) -> None:
-#     text = """
-#         let xs = [] : list(bool) in
-#         (length xs) == int(4, 0)
-#     """
-#     assert parse_string(text, test_parser)[BoolType(True)] == 1.0
+def test_list_empty(test_parser: lark.Lark) -> None:
+    text = """
+        let xs = [] : list(bool) in
+        (length xs) == int(4, 0)
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == 1.0
 
 
 def test_list_head(test_parser: lark.Lark) -> None:

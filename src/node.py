@@ -1,7 +1,7 @@
 import log
 import math
 import operator
-from dicetypes import BoolType, DiceType, IntType
+from dicetypes import BoolType, DiceType, IntType, ListType
 
 
 class Node: ...
@@ -206,8 +206,8 @@ class NthBitNode(BinaryNode):
     @staticmethod
     def nth_bit(n: IntType, number: IntType) -> BoolType:
         if not isinstance(n, IntType) or not isinstance(number, IntType):
-            raise ValueError(f'nth_bit can only take IntTypes '
-                + '(found {type(n)} and {type(number)})')
+            raise TypeError(f"nth_bit can only take IntTypes "
+                + "(found {type(n)} and {type(number)})")
         idx = n.val
         if idx >= number.width:
             return BoolType(False)
@@ -217,6 +217,23 @@ class NthBitNode(BinaryNode):
 
     def __repr__(self):
         return "NthBitNode" + super().__repr__()
+
+
+class ConcatNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = lambda x, y: ConcatNode.concat(x, y)
+
+    @staticmethod
+    def concat(x: DiceType, y: ListType):
+        if not isinstance(y, ListType):
+            raise TypeError(f"Must concatenate onto a list (found {type(y)})")
+        if not isinstance(x, y.type_):
+            raise TypeError(f"Must concatenate item with matching type ({type(x)} != {y.type_})")
+        return ListType([x] + y.lst, y.type_)
+
+    def __repr__(self):
+        return "ConcatNode" + super().__repr__()
 
 
 ### Function Nodes ##########################################################
@@ -331,12 +348,3 @@ class LengthNode(Node):
 
     def __repr__(self):
         return f"LengthNode({self.lst})"
-
-
-# class IntTypeNode(TypeNode):
-#     def __init__(self, ident: str, width: int):
-#         self.ident = ident
-#         self.width = width
-
-#     def __repr__(self):
-#         return f'IntTypeNode("{self.ident},{self.width}")'

@@ -77,13 +77,17 @@ grammar = f"""
          | add_expr ADD mul_expr   -> add
          | add_expr SUB mul_expr   -> sub
 
-?mul_expr: atom
+?mul_expr: concat_expr
          | mul_expr MUL atom     -> mul
          | mul_expr DIV atom     -> div
+
+?concat_expr: atom
+        | atom CONCAT concat_expr   -> concat
 
 ?atom: "(" expr ")"
      | "(" expr "," expr ")"                -> tuple_expr
      | "[" expr ("," expr)* "]"             -> list_expr
+     | "[" "]" ":" type                     -> list_empty
      | "fst" expr                           -> fst
      | "snd" expr                           -> snd
      | "head" expr                          -> head
@@ -138,6 +142,7 @@ MUL :  "*"
 DIV :  "/"
 LEFT_SHIFT: "<<"
 RIGHT_SHIFT: ">>"
+CONCAT: "::"
 
 %import common.WS
 %ignore WS
@@ -211,6 +216,9 @@ class TreeTransformer(lark.Transformer):
     def list_expr(self, x):
         return node.ListNode(x, DiceType)
 
+    def list_empty(self, x):
+        return node.ListNode([], x[0])
+
     def implies(self, x):
         return node.OrNode(node.NotNode(x[0]), x[2])
 
@@ -243,6 +251,9 @@ class TreeTransformer(lark.Transformer):
 
     def right_shift(self, x):
         return node.RightShiftNode(x[0], x[2])
+
+    def concat(self, x):
+        return node.ConcatNode(x[0], x[2])
 
     def assign(self, x):
         return node.AssignNode(x[0], x[2], x[3])
