@@ -94,7 +94,7 @@ def test_type_check(test_parser: lark.Lark) -> None:
     with pytest.raises(Exception):
         parse_string("int(2, 1) ^ true", test_parser)
     with pytest.raises(Exception):
-        parse_string("int(2, 1) <-> true", test_parser)
+        parse_string("int(2, 1) <=> true", test_parser)
     with pytest.raises(Exception):
         parse_string("int(3, 1) > int(3,2) > int(3,3)", test_parser)
 
@@ -107,7 +107,7 @@ def test_implies(test_parser: lark.Lark) -> None:
 
 
 def test_iff(test_parser: lark.Lark) -> None:
-    text = "flip 0.25 <-> flip 0.25"
+    text = "flip 0.25 <=> flip 0.25"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
         0.6875, rel=0.1
     )
@@ -620,7 +620,7 @@ def test_list_head(test_parser: lark.Lark) -> None:
 
 
 def test_list_tail(test_parser: lark.Lark) -> None:
-    text = "let xs = [flip 0.3, flip 0.2, flip 0.8] in tail xs"
+    text = "let xs = [flip 0.3, flip 0.2, flip 0.8] in head (tail (tail xs))"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
         0.8, rel=1e-2
     )

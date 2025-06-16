@@ -20,30 +20,35 @@ grammar = f"""
 ?program_expr: (function_expr)* expr -> program
 
 ?function_expr: "fun" IDENT "(" [arg_list_expr] ")" "{{" expr "}}" -> function
+              | "fun" IDENT "(" [arg_list_expr] ")" ":" type "{{" expr "}}" -> function_with_ret_type
 
 ?arg_list_expr: arg_expr ("," arg_expr)* -> arg_list
 
 ?arg_expr: IDENT ":" type -> arg
 
-?type: "bool"                           -> bool_type
-     | "(" type "," type ")"            -> tuple_type
+?type: "bool"                            -> bool_type
+     | "(" type "," type ")"             -> tuple_type
      | "int" "(" INT ")"                 -> int_type
-     | "[]" type                      -> list_type
+     | "list" "(" type ")"               -> list_type
      //| IDENT                           -> custom_type  // optional: for named types or type variables
 
 // We add precedence to the expression groups: 
 //      Arithmetic Expressions: MUL/DIV > ADD/SUB > LT,LTE,GT,GTE 
 //      Logical Expressions: NOT > XOR > AND > OR > IMPLIES > IFF
 // Then the precendence in general is:
-//      ARITHMETIC > LOGICAL > EQUALS/NOT_EQUALS
+//      ARITHMETIC > EQUALS/NOT_EQUALS > LOGICAL
 // Since arithmetic and logical operators don't mix, having them in the same precedence is fine
 
-?expr: equality_expr
-         | "fst" expr                -> fst
-         | "snd" expr                -> snd
-         | "head" expr               -> head
-         | "tail" expr               -> tail
-         | "length" expr             -> length
+?expr: or_expr
+
+?or_expr: and_expr
+        | or_expr OR and_expr       -> or_
+
+?and_expr: xor_expr
+         | and_expr AND xor_expr  -> and_
+
+?xor_expr: equality_expr
+         | equality_expr XOR xor_expr  -> xor
 
 ?equality_expr: iff_expr
          | equality_expr EQUALS iff_expr      -> eq
@@ -52,26 +57,21 @@ grammar = f"""
 ?iff_expr: implies_expr
          | implies_expr IFF iff_expr -> iff
 
-?implies_expr: or_expr
-         | or_expr IMPLIES implies_expr -> implies
-
-?or_expr: and_expr
-        | or_expr OR and_expr       -> or_
-
-?and_expr: xor_expr
-         | and_expr AND xor_expr  -> and_
-
-?xor_expr: unary_expr
-         | unary_expr XOR xor_expr  -> xor
+?implies_expr: unary_expr
+         | unary_expr IMPLIES implies_expr -> implies
 
 ?unary_expr: NOT unary_expr         -> not_
            | compare_expr
 
-?compare_expr: add_expr
-        | compare_expr LESS_THAN add_expr               -> lt
-        | compare_expr LESS_THAN_OR_EQUALS add_expr      -> lte
-        | compare_expr GREATER_THAN add_expr            -> gt
-        | compare_expr GREATER_THAN_OR_EQUALS add_expr   -> gte
+?compare_expr: shift_expr
+        | compare_expr LESS_THAN shift_expr               -> lt
+        | compare_expr LESS_THAN_OR_EQUALS shift_expr      -> lte
+        | compare_expr GREATER_THAN shift_expr            -> gt
+        | compare_expr GREATER_THAN_OR_EQUALS shift_expr   -> gte
+
+?shift_expr: add_expr
+        | shift_expr LEFT_SHIFT INT    -> left_shift
+        | shift_expr RIGHT_SHIFT INT   -> right_shift
 
 ?add_expr: mul_expr
          | add_expr ADD mul_expr   -> add
@@ -84,9 +84,15 @@ grammar = f"""
 ?atom: "(" expr ")"
      | "(" expr "," expr ")"                -> tuple_expr
      | "[" expr ("," expr)* "]"             -> list_expr
+     | "fst" expr                           -> fst
+     | "snd" expr                           -> snd
+     | "head" expr                          -> head
+     | "tail" expr                          -> tail
+     | "length" expr                        -> length
      | "true"                               -> true
      | "false"                              -> false
      | "flip" NUMBER                        -> flip
+     | "flip" "(" NUMBER ")"                -> flip
      | custom                               -> custom
      | "int" "(" INT "," INT ")"            -> int_
      | "let" IDENT ASSIGN expr "in" expr    -> assign
@@ -117,7 +123,7 @@ NOT : "!"
 AND :  "&&"
 OR  :  "||"
 IMPLIES.2 : "->"
-IFF: "<->"
+IFF: "<=>"
 EQUALS: "=="
 ASSIGN: "="
 NOT_EQUALS: "!="
@@ -130,6 +136,8 @@ ADD :  "+"
 SUB :  "-"
 MUL :  "*"
 DIV :  "/"
+LEFT_SHIFT: "<<"
+RIGHT_SHIFT: ">>"
 
 %import common.WS
 %ignore WS
@@ -230,6 +238,12 @@ class TreeTransformer(lark.Transformer):
     def xor(self, x):
         return node.AndNode(self.or_(x), node.NotNode(self.and_(x)))
 
+    def left_shift(self, x):
+        return node.LeftShiftNode(x[0], x[2])
+
+    def right_shift(self, x):
+        return node.RightShiftNode(x[0], x[2])
+
     def assign(self, x):
         return node.AssignNode(x[0], x[2], x[3])
 
@@ -302,6 +316,12 @@ class TreeTransformer(lark.Transformer):
         else:
             return node.FunctionNode(x[0], node.ArgListNode([]), x[2])
 
+    def function_with_ret_type(self, x):
+        if x[1]:
+            return node.FunctionNode(x[0], x[1], x[3])
+        else:
+            return node.FunctionNode(x[0], node.ArgListNode([]), x[3])
+
     def function_call(self, x):
         if x[1]:
             return node.FunctionCallNode(x[0], x[1])
@@ -315,11 +335,11 @@ class TreeTransformer(lark.Transformer):
         return node.NthBitNode(x[0], x[1])
 
 
-def parse_string(text: str, parser: lark.Lark) -> dict:
+def parse_string(text: str, parser: lark.Lark, num_its: int=100000) -> dict:
     ast = parser.parse(text)
     ir = TreeTransformer().transform(ast)
     print(ir)
-    inferencer = Inferencer(ir, num_iterations=100000, seed=0)
+    inferencer = Inferencer(ir, num_iterations=num_its, seed=0)
     return inferencer.infer()
 
 

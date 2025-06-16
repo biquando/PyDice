@@ -92,6 +92,28 @@ class NotNode(UnaryNode):
         return "NotNode" + super().__repr__()
 
 
+# This is unary because the shift amount is a literal, not an expression
+class LeftShiftNode(UnaryNode):
+    def __init__(self, left: ExprNode, amt: int):
+        super().__init__(left)
+        self.amt = amt
+        self.op = lambda x: x << self.amt
+
+    def __repr__(self):
+        return "LeftShiftNode" + super().__repr__()
+
+
+# This is unary because the shift amount is a literal, not an expression
+class RightShiftNode(UnaryNode):
+    def __init__(self, left: ExprNode, amt: int):
+        super().__init__(left)
+        self.amt = amt
+        self.op = lambda x: x >> self.amt
+
+    def __repr__(self):
+        return "RightShiftNode" + super().__repr__()
+
+
 ### Binary operations ##########################################################
 
 

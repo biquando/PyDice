@@ -23,7 +23,6 @@ class TreeInferencer:
     def infer(self) -> DiceType | None:
         self.observe_ok = True
         res = self.recurseTree(self.tree)
-        assert res is not None
 
         if self.observe_ok:
             return res
@@ -61,7 +60,7 @@ class TreeInferencer:
         var_map = {}
         for i in range(len(arguments)):
             param_ident, param_type = param_list[i].ident, param_list[i].type
-            arguments[i].verify_types(param_type)
+            # arguments[i].verify_types(param_type)
             var_map[param_ident] = arguments[i]
 
         # Call function
@@ -153,13 +152,13 @@ class TreeInferencer:
         elif type(treeNode) is node.HeadNode:
             lst = self.recurseTree(treeNode.lst)
             if not isinstance(lst, ListType):
-                raise Exception("`head` can only be used on lists")
+                raise Exception(f"`head` can only be used on lists (found {type(lst)})")
             return lst.lst[0]
         elif type(treeNode) is node.TailNode:
             lst = self.recurseTree(treeNode.lst)
             if not isinstance(lst, ListType):
                 raise Exception("`tail` can only be used on lists")
-            return lst.lst[-1]
+            return ListType(lst.lst[1:], DiceType)
         elif type(treeNode) is node.LengthNode:
             lst_node = self.recurseTree(treeNode.lst)
             if not isinstance(lst_node, ListType):
@@ -180,12 +179,15 @@ class Inferencer:
 
     def infer(self) -> dict[DiceType, float]:
         results = Counter()
+        num_its = 0
         num_successful_its = 0
-        while num_successful_its < self.num_its:
+        while num_its < self.num_its:
+            # print(num_successful_its, num_its)
+            num_its += 1
             res = self.treeInferencer.infer()
             if res is None:  # This means an observation failed
                 continue
             results[res] += 1
             num_successful_its += 1
 
-        return {outcome: count / self.num_its for outcome, count in results.items()}
+        return {outcome: count / num_successful_its for outcome, count in results.items()}

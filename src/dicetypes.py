@@ -79,6 +79,16 @@ class IntType(DiceType):
         self.verify_types(other)
         return IntType(self.width, self.val // other.val)
 
+    def __lshift__(self, other: int) -> IntType:
+        if type(other) is not int:
+            raise TypeError(f"Must left shift by an int literal (found {type(other)})")
+        return IntType(self.width, self.val << other)
+
+    def __rshift__(self, other: int) -> IntType:
+        if type(other) is not int:
+            raise TypeError(f"Must left shift by an int literal (found {type(other)})")
+        return IntType(self.width, self.val >> other)
+
 
 class TupleType(DiceType):
     def __init__(self, left, right):
