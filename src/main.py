@@ -86,7 +86,8 @@ grammar = f"""
      | IDENT                                -> ident
      | function_call_expr
      | "observe" expr                       -> observe
-    
+     | "nth_bit" "(" expr "," expr ")"      -> nth_bit
+
 ?function_call_expr: IDENT "(" [arg_exprs] ")" -> function_call
 
 ?arg_exprs: expr ("," expr)* -> arg_list
@@ -102,6 +103,7 @@ ints  : INT                             -> ints_single
 // Terminals
 %import common.NUMBER
 %import common.INT
+COMMENT : "//" /.*/
 IDENT :  /[a-zA-Z_][a-zA-Z0-9_]*/
 NOT : "!"
 AND :  "&&"
@@ -123,6 +125,7 @@ DIV :  "/"
 
 %import common.WS
 %ignore WS
+%ignore COMMENT
 """
 
 
@@ -271,12 +274,15 @@ class TreeTransformer(lark.Transformer):
     def observe(self, x):
         return node.ObserveNode(x[0])
 
+    def nth_bit(self, x):
+        return node.NthBitNode(x[0], x[1])
+
 
 def parse_string(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
     ir = TreeTransformer().transform(ast)
     print( ir )
-    inferencer = Inferencer(ir, num_iterations=100000)
+    inferencer = Inferencer(ir, num_iterations=100000, seed=0)
     return inferencer.infer()
 
 

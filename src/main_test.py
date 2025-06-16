@@ -280,3 +280,32 @@ def test_xy_observe(test_parser: lark.Lark) -> None:
     """
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2, rel=0.05)
     assert parse_string(text, test_parser)[BoolType(False)] == pytest.approx(0.8, rel=0.05)
+
+
+def test_comment(test_parser: lark.Lark) -> None:
+    text = """
+    let x = flip 0.5 in  // This is a comment!
+    x
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.05)
+    assert parse_string(text, test_parser)[BoolType(False)] == pytest.approx(0.5, rel=0.05)
+
+
+def test_nthbit1(test_parser: lark.Lark) -> None:
+    text = "let f1 = discrete(0.1, 0.4, 0.3, 0.2) in nth_bit(int(2, 1), f1)"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.6, rel=0.1)
+
+
+def test_nthbit2(test_parser: lark.Lark) -> None:
+    text = "let f1 = discrete(0.1, 0.4, 0.3, 0.2) in nth_bit(int(2, 0), f1)"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=0.1)
+
+
+def test_nthbit3(test_parser: lark.Lark) -> None:
+    text = "let a = int(2, 1) in nth_bit(int(2,1), a)"
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(1.0, rel=0.1)
+
+
+def test_nthbit4(test_parser: lark.Lark) -> None:
+    text = "let a = int(2, 1) in nth_bit(int(2,0), a)"
+    assert parse_string(text, test_parser)[BoolType(False)] == pytest.approx(1.0, rel=0.1)

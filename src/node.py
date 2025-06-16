@@ -1,7 +1,7 @@
 import log
 import math
 import operator
-from dicetypes import DiceType
+from dicetypes import BoolType, DiceType, IntType
 
 
 class Node: ...
@@ -180,6 +180,26 @@ class DivNode(BinaryNode):
 
     def __repr__(self):
         return "DivNode" + super().__repr__()
+
+class NthBitNode(BinaryNode):
+    def __init__(self, left: ExprNode, right: ExprNode):
+        super().__init__(left, right)
+        self.op = lambda x, y: NthBitNode.nth_bit(x, y)
+
+    @staticmethod
+    def nth_bit(n: IntType, number: IntType) -> BoolType:
+        if not isinstance(n, IntType) or not isinstance(number, IntType):
+            raise ValueError(f'nth_bit can only take IntTypes '
+                + '(found {type(n)} and {type(number)})')
+        idx = n.val
+        if idx >= number.width:
+            return BoolType(False)
+        idx = number.width - idx - 1  # for some reason we start from the MSB
+
+        return BoolType(((number.val >> idx) & 1) == 1)
+
+    def __repr__(self):
+        return "NthBitNode" + super().__repr__()
 
 ### Function Nodes ##########################################################
 
