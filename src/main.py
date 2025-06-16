@@ -4,7 +4,7 @@ import lark
 import node
 from inference import Inferencer
 from compiler import PyEdaCompiler
-from dicetypes import BoolType, IntType
+from dicetypes import BoolType, IntType, TupleType, ListType, DiceType
 import custom_distribution
 
 for dist_class_name, dist_module_name in zip(
@@ -26,9 +26,9 @@ grammar = f"""
 ?arg_expr: IDENT ":" type -> arg
 
 ?type: "bool"                           -> bool_type
-     //| "(" type "," type ")"            -> tuple_type
+     | "(" type "," type ")"            -> tuple_type
      | "int" "(" INT ")"                 -> int_type
-     //| "list" "(" type ")"              -> list_type
+     | "[]" type                      -> list_type
      //| IDENT                           -> custom_type  // optional: for named types or type variables
 
 // We add precedence to the expression groups: 
@@ -38,7 +38,12 @@ grammar = f"""
 //      ARITHMETIC > LOGICAL > EQUALS/NOT_EQUALS
 // Since arithmetic and logical operators don't mix, having them in the same precedence is fine
 
-?expr: equality_expr     
+?expr: equality_expr
+         | "fst" expr                -> fst
+         | "snd" expr                -> snd
+         | "head" expr               -> head
+         | "tail" expr               -> tail
+         | "length" expr             -> length
 
 ?equality_expr: iff_expr
          | equality_expr EQUALS iff_expr      -> eq
@@ -77,6 +82,8 @@ grammar = f"""
          | mul_expr DIV atom     -> div
 
 ?atom: "(" expr ")"
+     | "(" expr "," expr ")"                -> tuple_expr
+     | "[" expr ("," expr)* "]"             -> list_expr
      | "true"                               -> true
      | "false"                              -> false
      | "flip" NUMBER                        -> flip
@@ -136,8 +143,9 @@ DIV :  "/"
 # a `lark.Tree` node and replace it with the return value.
 class TreeTransformer(lark.Transformer):
     def expr(self, x):  # NOTE: x is a list of terminals & nonterminals in the
-        return x[0]     #       rule, not including tokens specified by double
-                        #       quotes in the grammar
+        return x[0]  #       rule, not including tokens specified by double
+        #       quotes in the grammar
+
     def paren(self, x):
         return x[0]
 
@@ -157,12 +165,13 @@ class TreeTransformer(lark.Transformer):
         return x[0]
 
     # This dynamically creates a new method for each custom distribution
-    for dist_class, dist_class_name  in zip(
+    for dist_class, dist_class_name in zip(
         custom_distribution.distribution_classes,
         custom_distribution.distribution_class_names,
     ):
-        exec(f"def custom_{dist_class.NAME}(self, x): "
-           + f"return {dist_class_name}(*x)")
+        exec(
+            f"def custom_{dist_class.NAME}(self, x): " + f"return {dist_class_name}(*x)"
+        )
 
     def int_(self, x):
         return IntType(x[0], x[1])
@@ -188,32 +197,38 @@ class TreeTransformer(lark.Transformer):
     def div(self, x):
         return node.DivNode(x[0], x[2])
 
+    def tuple_expr(self, x):
+        return node.TupleNode(x[0], x[1])
+
+    def list_expr(self, x):
+        return node.ListNode(x, DiceType)
+
     def implies(self, x):
         return node.OrNode(node.NotNode(x[0]), x[2])
 
     def iff(self, x):
-        return node.AndNode( self.implies( x ), self.implies( x[::-1] ) )
-    
+        return node.AndNode(self.implies(x), self.implies(x[::-1]))
+
     def eq(self, x):
-        return node.EqualNode( x[0], x[2] )
+        return node.EqualNode(x[0], x[2])
 
-    def neq(self,x):
-        return node.NotNode( self.eq( x ) )
-    
-    def lt(self,x):
-        return node.LessThanNode( x[0], x[2] )
-    
-    def lte(self,x):
-        return node.OrNode( self.lt(x), self.eq(x) )
-    
-    def gt(self,x):
-        return node.NotNode( self.lte(x) )
+    def neq(self, x):
+        return node.NotNode(self.eq(x))
 
-    def gte(self,x):
-        return node.NotNode( self.lt(x) )
+    def lt(self, x):
+        return node.LessThanNode(x[0], x[2])
 
-    def xor(self,x):
-        return node.AndNode( self.or_(x), node.NotNode( self.and_(x) ) )
+    def lte(self, x):
+        return node.OrNode(self.lt(x), self.eq(x))
+
+    def gt(self, x):
+        return node.NotNode(self.lte(x))
+
+    def gte(self, x):
+        return node.NotNode(self.lt(x))
+
+    def xor(self, x):
+        return node.AndNode(self.or_(x), node.NotNode(self.and_(x)))
 
     def assign(self, x):
         return node.AssignNode(x[0], x[2], x[3])
@@ -243,34 +258,55 @@ class TreeTransformer(lark.Transformer):
         return int(token)
 
     def program(self, x):
-        return node.ProgramNode( x )
+        return node.ProgramNode(x)
 
     def bool_type(self, token):
         return BoolType(True)
-    
+
     def int_type(self, x):
         return IntType(x[0], 0)
 
+    def tuple_type(self, x):
+        return TupleType(x[0], x[1])
+
+    def list_type(self, x):
+        return ListType([], x[0])
+
+    def fst(self, x):
+        return node.FstNode(x[0])
+
+    def snd(self, x):
+        return node.SndNode(x[0])
+
+    def head(self, x):
+        return node.HeadNode(x[0])
+
+    def tail(self, x):
+        return node.TailNode(x[0])
+
+    def length(self, x):
+        return node.LengthNode(x[0])
+
     def arg(self, x):
-        return node.ArgNode( x[0], x[1] )
+        return node.ArgNode(x[0], x[1])
 
     def arg_list(self, x):
         args = []
         for arg in x:
-            args.append( arg )
-        return node.ArgListNode( args )
+            args.append(arg)
+        return node.ArgListNode(args)
 
-    def function( self, x ):
-        if( x[1] ):
-            return node.FunctionNode( x[0], x[1], x[2] )
+    def function(self, x):
+        if x[1]:
+            return node.FunctionNode(x[0], x[1], x[2])
         else:
-            return node.FunctionNode( x[0], node.ArgListNode([]), x[2] )
+            return node.FunctionNode(x[0], node.ArgListNode([]), x[2])
 
-    def function_call( self, x ):
-        if( x[1] ):
-            return node.FunctionCallNode( x[0], x[1] )
+    def function_call(self, x):
+        if x[1]:
+            return node.FunctionCallNode(x[0], x[1])
         else:
-            return node.FunctionCallNode( x[0], node.ArgListNode([]) )
+            return node.FunctionCallNode(x[0], node.ArgListNode([]))
 
     def observe(self, x):
         return node.ObserveNode(x[0])
@@ -282,7 +318,7 @@ class TreeTransformer(lark.Transformer):
 def parse_string(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
     ir = TreeTransformer().transform(ast)
-    print( ir )
+    print(ir)
     inferencer = Inferencer(ir, num_iterations=100000, seed=0)
     return inferencer.infer()
 
@@ -294,6 +330,7 @@ def execute_from_file(
         s = f.read()
 
     return parse_string(s, parser)
+
 
 def parse_string_compile(text: str, parser: lark.Lark) -> dict:
     ast = parser.parse(text)
