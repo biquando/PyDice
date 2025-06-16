@@ -29,6 +29,12 @@ def test_basic_assign(test_parser: lark.Lark) -> None:
     )
 
 
+def test_nested_consistent_assign(test_parser: lark.Lark) -> None:
+    text = "let x = flip 0.5 in let y = !x in y && !x"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.5, rel=0.02
+    )
+
 def test_basic_if(test_parser: lark.Lark) -> None:
     text = "let x = if flip 0.5 then flip 0.25 else true in x"
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
@@ -216,6 +222,16 @@ def test_3_arg_function(test_parser: lark.Lark) -> None:
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.75, rel=0.1)
 
 
+def test_3_arg_function_dependent(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool, b : bool, c : bool ){ 
+    if b then a else c
+    } 
+    let x = flip 0.5 in flip_coin(x, x, !x)
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(1.0, rel=0.1)
+
+
 def test_incorrect_function_type_args(test_parser: lark.Lark) -> None:
     with pytest.raises(Exception):
         text = """
@@ -251,6 +267,32 @@ def test_2_functions(test_parser: lark.Lark) -> None:
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2475, rel=0.1)
 
 
+def test_call_in_call(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else true
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin2( flip_coin (flip 0.9))
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.225, rel=0.1)
+
+
+def test_call_in_def(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else flip_coin2 (flip 0.5)
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin2( flip_coin (flip 0.9))
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2625, rel=0.1)
+
+
 def test_recursive_function(test_parser: lark.Lark) -> None:
     text = """
     fun flip_coin(){
@@ -279,6 +321,17 @@ def test_xy_observe(test_parser: lark.Lark) -> None:
     """
     assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.2, rel=0.05)
     assert parse_string(text, test_parser)[BoolType(False)] == pytest.approx(0.8, rel=0.05)
+
+
+# this test case is explained in section 3.2.2 of the paper
+def test_func_observe(test_parser: lark.Lark) -> None:
+    text = """
+    fun f( x : bool ){
+    let y = x || flip 0.5 in let z = observe y in y
+    }
+    let x = flip 0.1 in let obs = f(x) in x
+    """
+    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(0.1818, rel=0.05)
 
 
 def test_flip_compiled(test_parser: lark.Lark) -> None:
@@ -313,6 +366,161 @@ def test_basic_assign_compiled(test_parser: lark.Lark) -> None:
 
 def test_consistent_assign_compiled(test_parser: lark.Lark) -> None:
     text = "let x = flip 0.5 in if x then x else !x"
-    assert parse_string(text, test_parser)[BoolType(True)] == pytest.approx(
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
         1.0, rel=1e-6
     )
+
+
+def test_nested_assign_compiled(test_parser: lark.Lark) -> None:
+    text = "let x = flip 0.5 in let y = flip 0.5 in if x && y then flip 0.8 else flip 0.1"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.275, rel=1e-6
+    )
+
+
+def test_nested_consistent_assign_compiled(test_parser: lark.Lark) -> None:
+    text = "let x = flip 0.5 in let y = !x in y && !x"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.5, rel=1e-6
+    )
+
+def test_nested_consistent_assign_advanced_compiled(test_parser: lark.Lark) -> None:
+    text = "let x = flip 0.5 in let y = flip 0.3 in let z = y && x in !z && x"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(
+        0.35, rel=1e-6
+    )
+
+def test_no_arg_function_compiled(test_parser: lark.Lark) -> None:
+    text = "fun flip_coin(){ flip 0.5 } flip_coin()"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.5, rel=1e-6)
+
+
+def test_1_arg_function_compiled(test_parser: lark.Lark) -> None:
+    text = "fun flip_coin( a : bool ){ if a then flip 0.5 else true} flip_coin( flip 0.5 )"
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.75, rel=1e-6)
+
+
+def test_3_arg_function_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool, b : bool, c : bool ){ 
+    if b then a || c else a && c
+    } 
+    flip_coin( flip 0.5, flip 0.9, flip 0.5 )
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.7, rel=1e-6)
+
+
+
+def test_3_arg_function_dependent_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool, b : bool, c : bool ){ 
+    if b then a else c
+    } 
+    let x = flip 0.5 in flip_coin(x, x, !x)
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(1.0, rel=1e-6)
+
+
+def test_incorrect_function_length_args_compiled(test_parser: lark.Lark) -> None:
+    with pytest.raises(Exception):
+        text = """
+        "fun flip_coin( a : bool ){
+        if a then flip 0.5 else true
+        }
+        flip_coin( true, false )
+        """
+        parse_string_compile(text, test_parser)
+
+
+def test_2_functions_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else true
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin( flip 0.9 ) && flip_coin2( flip 0.1 )
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2475, rel=1e-6)
+
+
+def test_call_in_call_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else true
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin2( flip_coin (flip 0.9))
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.225, rel=1e-6)
+
+def test_call_in_def_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun flip_coin( a : bool ){
+    if a then flip 0.5 else flip_coin2 (flip 0.5)
+    }
+    fun flip_coin2( a : bool ){
+    if !a then flip 0.5 else false
+    }
+    flip_coin2( flip_coin (flip 0.9))
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2625, rel=1e-6)
+
+
+def test_recursive_function_compiled(test_parser: lark.Lark) -> None:
+    with pytest.raises(Exception):
+        text = """
+        fun flip_coin(){
+        if flip 0.5 then true else flip_coin()
+        }
+        flip_coin()
+        """
+        parse_string_compile(text, test_parser)
+
+
+def test_mutual_recursion_compiled(test_parser: lark.Lark) -> None:
+    with pytest.raises(Exception):
+        text = """
+        fun flip_coin( a : bool ){
+        if a then flip 0.5 else flip_coin2 (flip 0.5)
+        }
+        fun flip_coin2( a : bool ){
+        if !a then flip_coin(flip 0.5) else false
+        }
+        flip_coin2( flip_coin (flip 0.9))
+        """
+        parse_string_compile(text, test_parser)
+
+
+def test_basic_observe_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    let x = flip 0.5 in
+    let tmp = observe x in
+    x
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == 1.0
+
+
+def test_xy_observe_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    let x = flip 0.2 in
+    let y = flip 0.6 in
+    let tmp = observe !y in
+    x || y
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.2, rel=0.05)
+    assert parse_string_compile(text, test_parser)[BoolType(False)] == pytest.approx(0.8, rel=0.05)
+
+
+# this test case is explained in section 3.2.2 of the paper
+def test_func_observe_compiled(test_parser: lark.Lark) -> None:
+    text = """
+    fun f( x : bool ){
+    let y = x || flip 0.5 in let z = observe y in y
+    }
+    let x = flip 0.1 in let obs = f(x) in x
+    """
+    assert parse_string_compile(text, test_parser)[BoolType(True)] == pytest.approx(0.1818, rel=0.05)
